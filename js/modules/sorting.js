@@ -39,9 +39,11 @@ export function updateCellOpacity(state, elements) {
   const currentType = state.currentSort.type;
   const isExerciseSort = currentEx in elements.config.exercises;
   const dimmedOpacity = "0.3";
+  const mobileDimmedOpacity = "0.25";
   const fullOpacity = "1";
   const hiddenDisplay = "none";
   const defaultDisplay = "";
+  const isMobile = window.innerWidth <= 991;
 
   const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
     (row) => row.style.display !== "none"
@@ -101,12 +103,32 @@ export function updateCellOpacity(state, elements) {
 
         if (isExerciseSort) {
           if (currentType === "max-reps") {
-            if (oneWrap) oneWrap.style.display = hiddenDisplay;
+            if (isMobile) {
+              // Na mobile pokazujemy obie wartości, ale z różnym opacity
+              if (oneWrap) {
+                oneWrap.style.display = defaultDisplay;
+                oneWrap.style.opacity = mobileDimmedOpacity;
+              }
+            } else {
+              // Na desktopie ukrywamy one-rep przy sortowaniu max-reps
+              if (oneWrap) oneWrap.style.display = hiddenDisplay;
+            }
+
             if (cellEx !== currentEx && maxWrap) {
               maxWrap.style.opacity = dimmedOpacity;
             }
           } else if (currentType === "one-rep") {
-            if (maxWrap) maxWrap.style.display = hiddenDisplay;
+            if (isMobile) {
+              // Na mobile pokazujemy obie wartości, ale z różnym opacity
+              if (maxWrap) {
+                maxWrap.style.display = defaultDisplay;
+                maxWrap.style.opacity = mobileDimmedOpacity;
+              }
+            } else {
+              // Na desktopie ukrywamy max-reps przy sortowaniu one-rep
+              if (maxWrap) maxWrap.style.display = hiddenDisplay;
+            }
+
             if (cellEx !== currentEx && oneWrap) {
               oneWrap.style.opacity = dimmedOpacity;
             }
@@ -197,22 +219,42 @@ export function setupSorting(state, elements) {
 
   resetButtonContainer.style.display = "none";
 
-  // Function to reset mobile column visibility
-  const resetMobileColumnVisibility = () => {
-    // Hide all columns except the ELO/score column
+  // Funkcja do pokazania tylko kolumny ELO
+  const showOnlyEloColumn = () => {
+    // Ukryj wszystkie kolumny danych
     document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
-      if (!column.matches('[data-table-header="elo"], [data-user-max="elo"]')) {
-        column.setAttribute("data-mobile-solo", "");
-      }
+      column.setAttribute("data-mobile-solo", "");
     });
 
-    // Ensure the ELO/score column is visible
-    document
-      .querySelectorAll('[data-table-header="elo"], [data-mobile-solo="show"]')
-      .forEach((column) => {
-        column.setAttribute("data-mobile-solo", "show");
-      });
+    // Pokaż tylko kolumnę ELO
+    document.querySelectorAll('[data-table-header="elo"]').forEach((column) => {
+      column.setAttribute("data-mobile-solo", "show");
+    });
+
+    document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
+      column.setAttribute("data-mobile-solo", "show");
+    });
   };
+
+  // Funkcja do pokazania tylko wybranej kolumny ćwiczenia
+  const showOnlyExerciseColumn = (exerciseKey) => {
+    // Ukryj wszystkie kolumny danych
+    document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
+      column.setAttribute("data-mobile-solo", "");
+    });
+
+    // Pokaż tylko wybraną kolumnę ćwiczenia
+    document.querySelectorAll(`[data-table-header="${exerciseKey}"]`).forEach((column) => {
+      column.setAttribute("data-mobile-solo", "show");
+    });
+
+    document.querySelectorAll(`[data-user-max="${exerciseKey}"]`).forEach((column) => {
+      column.setAttribute("data-mobile-solo", "show");
+    });
+  };
+
+  // Zastosuj domyślny widok mobilny przy ładowaniu strony
+  showOnlyEloColumn();
 
   sortButtonsContainer.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-button-action^='sort-']");
@@ -237,13 +279,8 @@ export function setupSorting(state, elements) {
 
     sortRows(state, elements, sortExercise, sortType, sortDirection);
 
-    // Set mobile visibility for the selected column
-    resetMobileColumnVisibility();
-    document
-      .querySelectorAll(`[data-table-header="${sortKey}"], [data-user-max="${sortKey}"]`)
-      .forEach((column) => {
-        column.setAttribute("data-mobile-solo", "show");
-      });
+    // Zastosuj widok mobilny - pokaż tylko wybraną kolumnę ćwiczenia
+    showOnlyExerciseColumn(sortKey);
 
     sortButtonsContainer
       .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
@@ -303,8 +340,8 @@ export function setupSorting(state, elements) {
       state.currentSort.direction
     );
 
-    // Reset mobile column visibility to show only the ELO column
-    resetMobileColumnVisibility();
+    // Zastosuj widok mobilny - przywróć tylko kolumnę ELO
+    showOnlyEloColumn();
 
     resetButtonContainer.style.display = "none";
 
