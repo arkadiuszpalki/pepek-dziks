@@ -219,40 +219,6 @@ export function setupSorting(state, elements) {
 
   resetButtonContainer.style.display = "none";
 
-  // Sprawdź czy jesteśmy na urządzeniu mobilnym
-  const isMobile = () => window.innerWidth <= 991;
-
-  // Ustaw pozycjonowanie przycisku reset w zależności od urządzenia
-  const positionResetButton = () => {
-    if (isMobile()) {
-      // Na mobile dodaj klasę do kontenera przycisku reset
-      resetButtonContainer.classList.add("mobile-reset-button");
-      // Dodaj styl dla przycisku, jeśli jeszcze nie istnieje
-      if (!document.getElementById("mobile-reset-button-style")) {
-        const style = document.createElement("style");
-        style.id = "mobile-reset-button-style";
-        style.textContent = `
-          .mobile-reset-button {
-            position: absolute !important;
-            right: 0 !important;
-            top: 0 !important;
-            display: none;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-    } else {
-      // Na desktopie usuń klasę
-      resetButtonContainer.classList.remove("mobile-reset-button");
-    }
-  };
-
-  // Wywołaj funkcję przy starcie
-  positionResetButton();
-
-  // Nasłuchuj zmian rozmiaru okna
-  window.addEventListener("resize", positionResetButton);
-
   // Funkcja do pokazania tylko kolumny ELO
   const showOnlyEloColumn = () => {
     // Ukryj wszystkie kolumny danych
@@ -268,11 +234,6 @@ export function setupSorting(state, elements) {
     document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
       column.setAttribute("data-mobile-solo", "show");
     });
-
-    // Dla mobilnych urządzeń - ukryj przycisk reset jeśli nie ma aktywnego sortowania
-    if (isMobile() && state.currentSort.exercise === "elo" && state.currentSort.type === "score") {
-      resetButtonContainer.style.display = "none";
-    }
   };
 
   // Funkcja do pokazania tylko wybranej kolumny ćwiczenia
@@ -290,16 +251,70 @@ export function setupSorting(state, elements) {
     document.querySelectorAll(`[data-user-max="${exerciseKey}"]`).forEach((column) => {
       column.setAttribute("data-mobile-solo", "show");
     });
-
-    // Na mobilnych urządzeniach zawsze pokazuj przycisk reset gdy jest aktywne sortowanie
-    if (isMobile() && resetButtonContainer) {
-      resetButtonContainer.style.display = "";
-    }
   };
 
   // Zastosuj domyślny widok mobilny przy ładowaniu strony
   showOnlyEloColumn();
 
+  resetButton.addEventListener("click", () => {
+    state.currentSort = { exercise: "elo", type: "score", direction: "desc" };
+    sortRows(
+      state,
+      elements,
+      state.currentSort.exercise,
+      state.currentSort.type,
+      state.currentSort.direction
+    );
+
+    // Zastosuj widok mobilny - przywróć tylko kolumnę ELO
+    showOnlyEloColumn();
+
+    resetButtonContainer.style.display = "none";
+
+    sortButtonsContainer
+      .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
+      .forEach((btn) => {
+        btn.classList.remove("is-sort-active");
+        const label = btn.querySelector(".button_label");
+        const originalText = btn.dataset.originalText;
+        if (label && originalText) {
+          label.textContent = originalText;
+        }
+        const existingPrefix = btn.querySelector("span.is-active");
+        if (existingPrefix) existingPrefix.remove();
+      });
+
+    updateCellOpacity(state, elements);
+    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
+    elements.functions.updateRankAndMedals(visibleRows);
+  });
+
+  // Funkcja do pozycjonowania przycisku resetowania
+  const positionResetButton = (activeButtonWrap) => {
+    const isMobile = window.innerWidth <= 991;
+
+    if (isMobile) {
+      // Na mobile umieść przycisk reset po prawej stronie aktywnego przycisku
+      if (activeButtonWrap && activeButtonWrap.nextSibling) {
+        sortButtonsContainer.insertBefore(resetButtonContainer, activeButtonWrap.nextSibling);
+      } else {
+        // Jeśli nie ma następnego elementu, dodaj na końcu
+        sortButtonsContainer.appendChild(resetButtonContainer);
+      }
+    } else {
+      // Na desktopie zachowaj oryginalne zachowanie - umieść przed aktywnym przyciskiem
+      if (activeButtonWrap) {
+        sortButtonsContainer.insertBefore(resetButtonContainer, activeButtonWrap);
+      } else {
+        sortButtonsContainer.prepend(resetButtonContainer);
+      }
+    }
+    resetButtonContainer.style.display = "";
+  };
+
+  // Zaktualizuj funkcję obsługi kliknięcia przycisku sortowania
   sortButtonsContainer.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-button-action^='sort-']");
     if (!button || button.dataset.buttonAction === "sort-reset") return;
@@ -363,59 +378,8 @@ export function setupSorting(state, elements) {
     }
 
     if (resetButtonContainer) {
-      if (isMobile()) {
-        // Na mobile przycisk reset zawsze będzie po prawej stronie
-        sortButtonsContainer.appendChild(resetButtonContainer);
-        resetButtonContainer.style.display = "";
-      } else {
-        // Na desktopie zachowujemy oryginalne zachowanie
-        const activeButtonWrap = button.closest(".button_wrap");
-        if (activeButtonWrap && activeButtonWrap.parentNode === sortButtonsContainer) {
-          sortButtonsContainer.insertBefore(resetButtonContainer, activeButtonWrap);
-          resetButtonContainer.style.display = "";
-        } else {
-          sortButtonsContainer.prepend(resetButtonContainer);
-          resetButtonContainer.style.display = "";
-        }
-      }
+      const activeButtonWrap = button.closest(".button_wrap");
+      positionResetButton(activeButtonWrap);
     }
-  });
-
-  resetButton.addEventListener("click", () => {
-    state.currentSort = { exercise: "elo", type: "score", direction: "desc" };
-    sortRows(
-      state,
-      elements,
-      state.currentSort.exercise,
-      state.currentSort.type,
-      state.currentSort.direction
-    );
-
-    // Zastosuj widok mobilny - przywróć tylko kolumnę ELO
-    showOnlyEloColumn();
-
-    // Na urządzeniu mobilnym zachowujemy widoczność przycisku reset
-    if (!isMobile()) {
-      resetButtonContainer.style.display = "none";
-    }
-
-    sortButtonsContainer
-      .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
-      .forEach((btn) => {
-        btn.classList.remove("is-sort-active");
-        const label = btn.querySelector(".button_label");
-        const originalText = btn.dataset.originalText;
-        if (label && originalText) {
-          label.textContent = originalText;
-        }
-        const existingPrefix = btn.querySelector("span.is-active");
-        if (existingPrefix) existingPrefix.remove();
-      });
-
-    updateCellOpacity(state, elements);
-    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
-      (row) => row.style.display !== "none"
-    );
-    elements.functions.updateRankAndMedals(visibleRows);
   });
 }
