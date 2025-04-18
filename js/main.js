@@ -16,6 +16,35 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const supabaseClient = api.initializeSupabase();
 
+  // Sprawdź czy mamy działającego klienta Supabase
+  if (!supabaseClient) {
+    // Pokaż komunikat o błędzie
+    const loadingScreen = document.querySelector("[data-loading-screen]");
+    if (loadingScreen) {
+      loadingScreen.innerHTML = `
+        <div class="error-message" style="text-align: center; padding: 20px; max-width: 600px; margin: 0 auto;">
+          <h2>Błąd konfiguracji</h2>
+          <p>Nie można połączyć się z bazą danych. Skonfiguruj klucz API Supabase.</p>
+          <p>Instrukcje konfiguracji znajdują się w pliku README.md.</p>
+        </div>
+      `;
+      loadingScreen.dataset.loadingScreen = "loaded";
+    } else {
+      // Jeśli nie ma elementu loadingScreen, dodaj komunikat bezpośrednio do body
+      const errorDiv = document.createElement("div");
+      errorDiv.className = "error-message";
+      errorDiv.style.cssText =
+        "text-align: center; padding: 20px; max-width: 600px; margin: 20px auto; background: rgba(255,0,0,0.1); border: 1px solid red; border-radius: 4px;";
+      errorDiv.innerHTML = `
+        <h2>Błąd konfiguracji</h2>
+        <p>Nie można połączyć się z bazą danych. Skonfiguruj klucz API Supabase.</p>
+        <p>Instrukcje konfiguracji znajdują się w pliku README.md.</p>
+      `;
+      document.body.prepend(errorDiv);
+    }
+    return; // Przerwij dalsze wykonanie
+  }
+
   const state = {
     currentSort: { exercise: "elo", type: "score", direction: "desc" },
     currentSexFilter: "all",

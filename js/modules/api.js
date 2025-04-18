@@ -5,11 +5,24 @@ let supabaseClient = null;
 
 export function initializeSupabase() {
   const { createClient } = supabase;
+
+  // Sprawdź czy klucz API istnieje
+  if (!SUPABASE_CONFIG.key) {
+    console.error("Błąd inicjalizacji Supabase: Brak klucza API");
+    return null;
+  }
+
   supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
   return supabaseClient;
 }
 
 export async function fetchLeaderboardData() {
+  // Sprawdź czy klucz API istnieje
+  if (!SUPABASE_CONFIG.key) {
+    console.error("Błąd pobierania danych: Brak klucza API Supabase");
+    return [];
+  }
+
   const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/leaderboard?select=*`, {
     headers: {
       apikey: SUPABASE_CONFIG.key,
@@ -33,7 +46,11 @@ export async function createUser(userData) {
 }
 
 export async function updateUser(userId, userData) {
-  const { data, error } = await supabaseClient.from("leaderboard").update(userData).eq("id", userId).select();
+  const { data, error } = await supabaseClient
+    .from("leaderboard")
+    .update(userData)
+    .eq("id", userId)
+    .select();
   if (error) {
     console.error("Supabase update error:", error);
   }
@@ -46,7 +63,11 @@ export async function deleteUser(userId) {
 }
 
 export async function getUserProfile(userId) {
-  const { data, error } = await supabaseClient.from("profiles").select("username, is_admin, can_edit").eq("user_id", userId).single();
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("username, is_admin, can_edit")
+    .eq("user_id", userId)
+    .single();
   if (error) {
     console.error("Error fetching user profile:", error);
     return null;

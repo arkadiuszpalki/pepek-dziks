@@ -19,7 +19,27 @@ export const CONFIG = {
 
 export const MIN_LOADING_TIME_MS = 400;
 
+// Bezpieczniejsze ładowanie konfiguracji Supabase
 export const SUPABASE_CONFIG = {
   url: "https://wucacawlvnmsjufprulv.supabase.co",
-  key: "REMOVED_SECRET ",
+  key: getSupabaseKey(),
 };
+
+// Funkcja pobierająca klucz z Custom Attributes Webflow
+function getSupabaseKey() {
+  // Sprawdź, czy istnieje element z atrybutem data-supabase-key
+  const keyElement = document.querySelector("[data-supabase-key]");
+  if (keyElement && keyElement.dataset.supabaseKey) {
+    return keyElement.dataset.supabaseKey;
+  }
+
+  // Alternatywnie pobierz z window.__env__ jeśli zostało skonfigurowane
+  if (window.__env__ && window.__env__.SUPABASE_KEY) {
+    return window.__env__.SUPABASE_KEY;
+  }
+
+  console.error(
+    "Brak klucza Supabase. Dodaj element z atrybutem data-supabase-key lub skonfiguruj window.__env__"
+  );
+  return null; // Aplikacja nie zadziała bez klucza
+}

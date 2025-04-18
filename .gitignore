@@ -1,0 +1,25 @@
+# Pliki z kluczami i sekretami
+.env
+.env.local
+.env.development
+.env.production
+*.key
+*secret*
+*key*
+
+# Pliki konfiguracyjne zawierające wrażliwe dane
+config.local.js
+settings.local.js
+
+# Pliki tymczasowe
+.DS_Store
+node_modules/
+tmp/
+.tmp/
+*.tmp
+*.temp
+
+# Pliki IDE
+.idea/
+.vscode/
+*.sublime-* 
