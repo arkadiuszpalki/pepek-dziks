@@ -213,11 +213,14 @@ export function setupSorting(state, elements) {
     ? resetButtonContainer.querySelector('[data-button-action="clear-sort"]')
     : null;
 
-  if (!sortButtonsContainer || !resetButtonContainer || !resetButton) {
+  if (!sortButtonsContainer) {
     return;
   }
 
-  resetButtonContainer.style.display = "none";
+  // Ukryj przycisk Reset, ponieważ jego funkcja jest teraz zintegrowana z każdym przyciskiem sortowania
+  if (resetButtonContainer) {
+    resetButtonContainer.style.display = "none";
+  }
 
   // Funkcja do pokazania tylko kolumny ELO
   const showOnlyEloColumn = () => {
@@ -256,7 +259,37 @@ export function setupSorting(state, elements) {
   // Zastosuj domyślny widok mobilny przy ładowaniu strony
   showOnlyEloColumn();
 
-  resetButton.addEventListener("click", () => {
+  // Funkcja do resetowania tylko Muscle-Up
+  const resetMuscleUp = () => {
+    // Zmień sortowanie na muscle-up, max-reps
+    state.currentSort = { exercise: "muscle-up", type: "max-reps", direction: "desc" };
+    sortRows(
+      state,
+      elements,
+      state.currentSort.exercise,
+      state.currentSort.type,
+      state.currentSort.direction
+    );
+
+    // Pokaż tylko kolumnę muscle-up
+    showOnlyExerciseColumn("muscle-up");
+
+    // Aktualizuj style przycisków
+    updateSortButtonsStyles("muscle-up", "MR");
+
+    // Pokaż przycisk reset
+    resetButtonContainer.style.display = "";
+
+    // Aktualizuj widoczność komórek i rankingi
+    updateCellOpacity(state, elements);
+    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
+    elements.functions.updateRankAndMedals(visibleRows);
+  };
+
+  // Funkcja do resetowania wszystkiego
+  const resetAll = () => {
     state.currentSort = { exercise: "elo", type: "score", direction: "desc" };
     sortRows(
       state,
@@ -271,6 +304,7 @@ export function setupSorting(state, elements) {
 
     resetButtonContainer.style.display = "none";
 
+    // Zresetuj style przycisków
     sortButtonsContainer
       .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
       .forEach((btn) => {
@@ -289,6 +323,87 @@ export function setupSorting(state, elements) {
       (row) => row.style.display !== "none"
     );
     elements.functions.updateRankAndMedals(visibleRows);
+  };
+
+  // Funkcja do aktualizacji stylów przycisków sortowania
+  const updateSortButtonsStyles = (exercise, prefix) => {
+    // Najpierw usuń aktywne style ze wszystkich przycisków
+    sortButtonsContainer
+      .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
+      .forEach((btn) => {
+        btn.classList.remove("is-sort-active");
+        const label = btn.querySelector(".button_label");
+        const originalText = btn.dataset.originalText;
+        if (label && originalText) {
+          label.textContent = originalText;
+        }
+        const existingPrefix = btn.querySelector("span.is-active");
+        if (existingPrefix) existingPrefix.remove();
+      });
+
+    // Znajdź i aktywuj odpowiedni przycisk
+    const targetButton = sortButtonsContainer.querySelector(
+      `button[data-button-action="sort-${exercise}"]`
+    );
+    if (targetButton) {
+      targetButton.classList.add("is-sort-active");
+
+      const label = targetButton.querySelector(".button_label");
+      if (label && prefix) {
+        const prefixSpan = document.createElement("span");
+        prefixSpan.className = "is-active";
+        prefixSpan.textContent = prefix;
+        label.parentNode.insertBefore(prefixSpan, label);
+      }
+    }
+  };
+
+  // Toggle między resetem MR i resetem wszystkiego
+  let lastClickTime = 0;
+  const doubleClickThreshold = 300; // ms
+
+  // Dodaj tooltip do przycisku reset
+  const resetTooltip = document.createElement("div");
+  resetTooltip.className = "custom-tooltip";
+  resetTooltip.textContent = "1x klik: pokaż Muscle-Up MR | 2x klik: reset widoku";
+  resetTooltip.style.position = "absolute";
+  resetTooltip.style.bottom = "100%";
+  resetTooltip.style.left = "50%";
+  resetTooltip.style.transform = "translateX(-50%)";
+  resetTooltip.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+  resetTooltip.style.color = "white";
+  resetTooltip.style.padding = "6px 10px";
+  resetTooltip.style.borderRadius = "4px";
+  resetTooltip.style.fontSize = "12px";
+  resetTooltip.style.whiteSpace = "nowrap";
+  resetTooltip.style.opacity = "0";
+  resetTooltip.style.transition = "opacity 0.3s";
+  resetTooltip.style.pointerEvents = "none";
+  resetTooltip.style.zIndex = "10";
+  resetButtonContainer.style.position = "relative";
+  resetButtonContainer.appendChild(resetTooltip);
+
+  // Pokaż/ukryj tooltip
+  resetButton.addEventListener("mouseenter", () => {
+    resetTooltip.style.opacity = "1";
+  });
+
+  resetButton.addEventListener("mouseleave", () => {
+    resetTooltip.style.opacity = "0";
+  });
+
+  resetButton.addEventListener("click", (e) => {
+    const currentTime = new Date().getTime();
+    const isDoubleClick = currentTime - lastClickTime < doubleClickThreshold;
+    lastClickTime = currentTime;
+
+    if (isDoubleClick) {
+      // Podwójne kliknięcie - resetuj wszystko
+      resetAll();
+    } else {
+      // Pojedyncze kliknięcie - resetuj do Muscle-Up MR
+      resetMuscleUp();
+    }
   });
 
   // Funkcja do pozycjonowania przycisku resetowania
@@ -324,62 +439,105 @@ export function setupSorting(state, elements) {
 
     if (!(sortKey in elements.config.exercises)) return;
 
+    // Implementacja cyklu 3-klikowego dla każdego przycisku
     let sortExercise = sortKey;
     let sortType = "max-reps";
     let sortDirection = "desc";
+    let resetView = false;
 
-    if (sortExercise === "press") {
-      sortType = "one-rep";
-    } else {
-      if (state.currentSort.exercise === sortExercise) {
-        sortType = state.currentSort.type === "max-reps" ? "one-rep" : "max-reps";
+    // Jeśli obecnie jesteśmy na tym samym ćwiczeniu
+    if (state.currentSort.exercise === sortExercise) {
+      // Jeśli już jesteśmy na OR, to następny krok to reset
+      if (state.currentSort.type === "one-rep") {
+        resetView = true;
+      }
+      // Jeśli jesteśmy na MR, następny krok to OR
+      else if (state.currentSort.type === "max-reps") {
+        sortType = "one-rep";
       }
     }
 
-    sortRows(state, elements, sortExercise, sortType, sortDirection);
+    // Obsługa resetu lub normalnego sortowania
+    if (resetView) {
+      // Resetuj do widoku domyślnego (ELO)
+      state.currentSort = { exercise: "elo", type: "score", direction: "desc" };
+      sortRows(
+        state,
+        elements,
+        state.currentSort.exercise,
+        state.currentSort.type,
+        state.currentSort.direction
+      );
 
-    // Zastosuj widok mobilny - pokaż tylko wybraną kolumnę ćwiczenia
-    showOnlyExerciseColumn(sortKey);
+      // Zastosuj widok mobilny - przywróć tylko kolumnę ELO
+      showOnlyEloColumn();
 
-    sortButtonsContainer
-      .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
-      .forEach((btn) => {
-        btn.classList.remove("is-sort-active");
-        const label = btn.querySelector(".button_label");
-        const originalText = btn.dataset.originalText;
-        if (label && originalText) {
-          label.textContent = originalText;
-        }
-        const existingPrefix = btn.querySelector("span.is-active");
-        if (existingPrefix) existingPrefix.remove();
-      });
+      // Zresetuj style przycisków
+      sortButtonsContainer
+        .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
+        .forEach((btn) => {
+          btn.classList.remove("is-sort-active");
+          const label = btn.querySelector(".button_label");
+          const originalText = btn.dataset.originalText;
+          if (label && originalText) {
+            label.textContent = originalText;
+          }
+          const existingPrefix = btn.querySelector("span.is-active");
+          if (existingPrefix) existingPrefix.remove();
+        });
+    } else {
+      // Obsługa specjalnego przypadku dla press, który ma tylko OR
+      if (sortExercise === "press") {
+        sortType = "one-rep";
+      }
 
-    button.classList.add("is-sort-active");
+      sortRows(state, elements, sortExercise, sortType, sortDirection);
 
-    let prefix = "";
-    if (state.currentSort.exercise === "press") {
-      prefix = "OR";
-    } else if (elements.config.exercises[state.currentSort.exercise]) {
-      prefix = state.currentSort.type === "one-rep" ? "OR" : "MR";
+      // Zastosuj widok mobilny - pokaż tylko wybraną kolumnę ćwiczenia
+      showOnlyExerciseColumn(sortKey);
+
+      // Najpierw usuń aktywne style ze wszystkich przycisków
+      sortButtonsContainer
+        .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
+        .forEach((btn) => {
+          btn.classList.remove("is-sort-active");
+          const label = btn.querySelector(".button_label");
+          const originalText = btn.dataset.originalText;
+          if (label && originalText) {
+            label.textContent = originalText;
+          }
+          const existingPrefix = btn.querySelector("span.is-active");
+          if (existingPrefix) existingPrefix.remove();
+        });
+
+      button.classList.add("is-sort-active");
+
+      let prefix = "";
+      if (state.currentSort.exercise === "press") {
+        prefix = "OR";
+      } else if (elements.config.exercises[state.currentSort.exercise]) {
+        prefix = state.currentSort.type === "one-rep" ? "OR" : "MR";
+      }
+
+      const label = button.querySelector(".button_label");
+
+      const originalText = button.dataset.originalText;
+      if (label && originalText) {
+        label.textContent = originalText;
+      }
+
+      if (label && prefix) {
+        const prefixSpan = document.createElement("span");
+        prefixSpan.className = "is-active";
+        prefixSpan.textContent = prefix;
+        label.parentNode.insertBefore(prefixSpan, label);
+      }
     }
 
-    const label = button.querySelector(".button_label");
-
-    const originalText = button.dataset.originalText;
-    if (label && originalText) {
-      label.textContent = originalText;
-    }
-
-    if (label && prefix) {
-      const prefixSpan = document.createElement("span");
-      prefixSpan.className = "is-active";
-      prefixSpan.textContent = prefix;
-      label.parentNode.insertBefore(prefixSpan, label);
-    }
-
-    if (resetButtonContainer) {
-      const activeButtonWrap = button.closest(".button_wrap");
-      positionResetButton(activeButtonWrap);
-    }
+    updateCellOpacity(state, elements);
+    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
+    elements.functions.updateRankAndMedals(visibleRows);
   });
 }
