@@ -20,7 +20,10 @@ export function sortDataForRows(rowsToSort, exercise, type, direction) {
         valueB = parseInt(b.dataset.eloScore || 0);
       }
     } else {
-      const selector = type === "max-reps" ? `[data-user-max="${exercise}"] [data-max-reps]` : `[data-user-max="${exercise}"] [data-one-rep]`;
+      const selector =
+        type === "max-reps"
+          ? `[data-user-max="${exercise}"] [data-max-reps]`
+          : `[data-user-max="${exercise}"] [data-one-rep]`;
       const elementA = a.querySelector(selector);
       const elementB = b.querySelector(selector);
       valueA = parseInt(elementA?.dataset.value || 0);
@@ -40,7 +43,9 @@ export function updateCellOpacity(state, elements) {
   const hiddenDisplay = "none";
   const defaultDisplay = "";
 
-  const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+  const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+    (row) => row.style.display !== "none"
+  );
 
   if ((currentEx === "elo" && currentType === "score") || currentEx === "name") {
     visibleRows.forEach((row) => {
@@ -152,7 +157,9 @@ export function sortRows(state, elements, exercise, type, direction = "desc") {
       absolute: true,
       onComplete: () => {
         // Po zakończeniu animacji aktualizujemy tylko rangi i medale
-        const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+        const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+          (row) => row.style.display !== "none"
+        );
         elements.functions.updateRankAndMedals(visibleRows);
       },
     });
@@ -161,28 +168,51 @@ export function sortRows(state, elements, exercise, type, direction = "desc") {
     sortedRows.forEach((row) => elements.tableBody.appendChild(row));
 
     // Aktualizacja rang i medali
-    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
     elements.functions.updateRankAndMedals(visibleRows);
   }
 }
 
 export function setupSorting(state, elements) {
-  document.querySelectorAll(".leaderboard_actions button[data-button-action^='sort-']").forEach((button) => {
-    const label = button.querySelector(".button_label");
-    if (label) {
-      button.dataset.originalText = label.textContent.trim();
-    }
-  });
+  document
+    .querySelectorAll(".leaderboard_actions button[data-button-action^='sort-']")
+    .forEach((button) => {
+      const label = button.querySelector(".button_label");
+      if (label) {
+        button.dataset.originalText = label.textContent.trim();
+      }
+    });
 
   const sortButtonsContainer = document.querySelector(".leaderboard_actions .actions-wrap");
   const resetButtonContainer = document.querySelector("[data-sort-button]");
-  const resetButton = resetButtonContainer ? resetButtonContainer.querySelector('[data-button-action="clear-sort"]') : null;
+  const resetButton = resetButtonContainer
+    ? resetButtonContainer.querySelector('[data-button-action="clear-sort"]')
+    : null;
 
   if (!sortButtonsContainer || !resetButtonContainer || !resetButton) {
     return;
   }
 
   resetButtonContainer.style.display = "none";
+
+  // Function to reset mobile column visibility
+  const resetMobileColumnVisibility = () => {
+    // Hide all columns except the ELO/score column
+    document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
+      if (!column.matches('[data-table-header="elo"], [data-user-max="elo"]')) {
+        column.setAttribute("data-mobile-solo", "");
+      }
+    });
+
+    // Ensure the ELO/score column is visible
+    document
+      .querySelectorAll('[data-table-header="elo"], [data-mobile-solo="show"]')
+      .forEach((column) => {
+        column.setAttribute("data-mobile-solo", "show");
+      });
+  };
 
   sortButtonsContainer.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-button-action^='sort-']");
@@ -207,16 +237,26 @@ export function setupSorting(state, elements) {
 
     sortRows(state, elements, sortExercise, sortType, sortDirection);
 
-    sortButtonsContainer.querySelectorAll("button[data-button-action^='sort-'].is-sort-active").forEach((btn) => {
-      btn.classList.remove("is-sort-active");
-      const label = btn.querySelector(".button_label");
-      const originalText = btn.dataset.originalText;
-      if (label && originalText) {
-        label.textContent = originalText;
-      }
-      const existingPrefix = btn.querySelector("span.is-active");
-      if (existingPrefix) existingPrefix.remove();
-    });
+    // Set mobile visibility for the selected column
+    resetMobileColumnVisibility();
+    document
+      .querySelectorAll(`[data-table-header="${sortKey}"], [data-user-max="${sortKey}"]`)
+      .forEach((column) => {
+        column.setAttribute("data-mobile-solo", "show");
+      });
+
+    sortButtonsContainer
+      .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
+      .forEach((btn) => {
+        btn.classList.remove("is-sort-active");
+        const label = btn.querySelector(".button_label");
+        const originalText = btn.dataset.originalText;
+        if (label && originalText) {
+          label.textContent = originalText;
+        }
+        const existingPrefix = btn.querySelector("span.is-active");
+        if (existingPrefix) existingPrefix.remove();
+      });
 
     button.classList.add("is-sort-active");
 
@@ -255,23 +295,36 @@ export function setupSorting(state, elements) {
 
   resetButton.addEventListener("click", () => {
     state.currentSort = { exercise: "elo", type: "score", direction: "desc" };
-    sortRows(state, elements, state.currentSort.exercise, state.currentSort.type, state.currentSort.direction);
+    sortRows(
+      state,
+      elements,
+      state.currentSort.exercise,
+      state.currentSort.type,
+      state.currentSort.direction
+    );
+
+    // Reset mobile column visibility to show only the ELO column
+    resetMobileColumnVisibility();
 
     resetButtonContainer.style.display = "none";
 
-    sortButtonsContainer.querySelectorAll("button[data-button-action^='sort-'].is-sort-active").forEach((btn) => {
-      btn.classList.remove("is-sort-active");
-      const label = btn.querySelector(".button_label");
-      const originalText = btn.dataset.originalText;
-      if (label && originalText) {
-        label.textContent = originalText;
-      }
-      const existingPrefix = btn.querySelector("span.is-active");
-      if (existingPrefix) existingPrefix.remove();
-    });
+    sortButtonsContainer
+      .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
+      .forEach((btn) => {
+        btn.classList.remove("is-sort-active");
+        const label = btn.querySelector(".button_label");
+        const originalText = btn.dataset.originalText;
+        if (label && originalText) {
+          label.textContent = originalText;
+        }
+        const existingPrefix = btn.querySelector("span.is-active");
+        if (existingPrefix) existingPrefix.remove();
+      });
 
     updateCellOpacity(state, elements);
-    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
     elements.functions.updateRankAndMedals(visibleRows);
   });
 }
