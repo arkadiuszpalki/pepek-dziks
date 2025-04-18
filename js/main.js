@@ -9,6 +9,7 @@ import * as filtering from "./modules/filtering.js";
 import * as userManagement from "./modules/userManagement.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // test
   if (!window.gsap || !window.Flip) {
     console.warn("GSAP or Flip not loaded. Animations will be disabled.");
   }
