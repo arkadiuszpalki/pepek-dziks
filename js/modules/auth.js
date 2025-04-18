@@ -105,14 +105,30 @@ export function setupAuthListeners(elements) {
       elements.authElements.logoutButton.disabled = true;
 
       try {
+        // Sprawdź najpierw, czy sesja istnieje
+        const session = await api.getCurrentSession();
+
+        // Jeśli sesja nie istnieje, od razu aktualizuj UI bez próby wylogowania
+        if (!session) {
+          await updateAuthStateUI(null, elements);
+          return;
+        }
+
         const { error } = await api.signOut();
         if (error) {
+          // Jeśli wystąpił błąd związany z brakiem sesji, po prostu aktualizuj UI
+          if (error.message && error.message.includes("Auth session missing")) {
+            await updateAuthStateUI(null, elements);
+            return;
+          }
           throw error;
         }
 
         await updateAuthStateUI(null, elements);
       } catch (error) {
         console.error("Logout error:", error);
+        // W przypadku błędu, również zaktualizuj UI na wylogowane
+        await updateAuthStateUI(null, elements);
       } finally {
         elements.authElements.logoutButton.disabled = false;
       }

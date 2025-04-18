@@ -361,11 +361,11 @@ function setupDialogSwipeGesture(dialogElement) {
 
     const deltaY = currentY - startY;
 
-    // Reset transition for smooth animation
-    dialogElement.style.transition = "transform 0.3s ease-out";
+    // Reset transition with custom cubic-bezier for a more physical feel with bounce
+    dialogElement.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1.25)";
 
     if (deltaY >= DISMISS_THRESHOLD) {
-      // Swipe threshold reached, dismiss the dialog
+      // Swipe threshold reached, dismiss the dialog with custom animation
       dialogElement.style.transform = `translateY(${window.innerHeight}px) scale(0.9)`;
 
       // After animation completes, hide the dialog properly
@@ -386,16 +386,16 @@ function setupDialogSwipeGesture(dialogElement) {
         if (dialogElement.dataset && dialogElement.dataset.editingUserId) {
           delete dialogElement.dataset.editingUserId;
         }
-      }, 300);
+      }, 400); // Increased time for the longer animation
     } else {
-      // Not enough to dismiss, snap back
+      // Not enough to dismiss, snap back with bouncy animation
       dialogElement.style.transform = "";
 
       // Reset styles after animation
       setTimeout(() => {
         dialogElement.style.transition = "";
         dialogElement.style.userSelect = "";
-      }, 300);
+      }, 400); // Increased time for the longer animation
     }
 
     isDragging = false;
