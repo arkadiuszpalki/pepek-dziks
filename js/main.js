@@ -208,27 +208,85 @@ document.addEventListener("DOMContentLoaded", async () => {
     auth.setupAuthListeners(elements);
     userManagement.setupAddUserButton(elements);
 
-    // Prevent 1Password from auto-showing on mobile
+    // Prevent 1Password from auto-showing on mobile - advanced approach
     if (elements.authElements.emailInput && elements.authElements.passwordInput) {
-      // Add readonly attribute to prevent password managers from auto-triggering
-      elements.authElements.emailInput.setAttribute("readonly", "readonly");
-      elements.authElements.passwordInput.setAttribute("readonly", "readonly");
+      // Save original type of password field
+      const originalPasswordType = elements.authElements.passwordInput.type;
 
-      // Remove readonly when user focuses the field
-      elements.authElements.emailInput.addEventListener("focus", function () {
-        this.removeAttribute("readonly");
-      });
-      elements.authElements.passwordInput.addEventListener("focus", function () {
-        this.removeAttribute("readonly");
-      });
+      // Temporarily set password field to text and change attributes to prevent detection
+      elements.authElements.passwordInput.type = "text";
 
-      // Also handle click event for better mobile experience
-      elements.authElements.emailInput.addEventListener("click", function () {
-        this.removeAttribute("readonly");
-      });
-      elements.authElements.passwordInput.addEventListener("click", function () {
-        this.removeAttribute("readonly");
-      });
+      // Add attributes that prevent password managers from detecting the fields
+      elements.authElements.emailInput.setAttribute("autocomplete", "off");
+      elements.authElements.passwordInput.setAttribute("autocomplete", "off");
+
+      // Add data attributes that some password managers check
+      elements.authElements.emailInput.setAttribute("data-lpignore", "true");
+      elements.authElements.passwordInput.setAttribute("data-lpignore", "true");
+      elements.authElements.emailInput.setAttribute("data-1p-ignore", "true");
+      elements.authElements.passwordInput.setAttribute("data-1p-ignore", "true");
+
+      // Use non-standard placeholder to avoid recognition
+      const originalEmailPlaceholder = elements.authElements.emailInput.placeholder;
+      const originalPasswordPlaceholder = elements.authElements.passwordInput.placeholder;
+      elements.authElements.emailInput.placeholder = "Kliknij, aby wprowadzić email";
+      elements.authElements.passwordInput.placeholder = "Kliknij, aby wprowadzić hasło";
+
+      // Restore field properties when user interacts with them
+      const restoreField = function (field, isPassword) {
+        // Remove all the prevention attributes
+        field.removeAttribute("autocomplete");
+        field.removeAttribute("data-lpignore");
+        field.removeAttribute("data-1p-ignore");
+
+        // Restore original type if it's a password field
+        if (isPassword) {
+          field.type = originalPasswordType;
+          field.placeholder = originalPasswordPlaceholder;
+        } else {
+          field.placeholder = originalEmailPlaceholder;
+        }
+
+        // Remove these listeners after first interaction
+        field.removeEventListener("focus", field._restoreFunction);
+        field.removeEventListener("click", field._restoreFunction);
+        field.removeEventListener("touchstart", field._restoreFunction);
+      };
+
+      elements.authElements.emailInput._restoreFunction = function () {
+        restoreField(elements.authElements.emailInput, false);
+      };
+
+      elements.authElements.passwordInput._restoreFunction = function () {
+        restoreField(elements.authElements.passwordInput, true);
+      };
+
+      // Add multiple event listeners for better mobile compatibility
+      elements.authElements.emailInput.addEventListener(
+        "focus",
+        elements.authElements.emailInput._restoreFunction
+      );
+      elements.authElements.emailInput.addEventListener(
+        "click",
+        elements.authElements.emailInput._restoreFunction
+      );
+      elements.authElements.emailInput.addEventListener(
+        "touchstart",
+        elements.authElements.emailInput._restoreFunction
+      );
+
+      elements.authElements.passwordInput.addEventListener(
+        "focus",
+        elements.authElements.passwordInput._restoreFunction
+      );
+      elements.authElements.passwordInput.addEventListener(
+        "click",
+        elements.authElements.passwordInput._restoreFunction
+      );
+      elements.authElements.passwordInput.addEventListener(
+        "touchstart",
+        elements.authElements.passwordInput._restoreFunction
+      );
     }
 
     // Setup dialog swipe to dismiss
