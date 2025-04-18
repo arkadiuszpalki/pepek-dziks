@@ -209,41 +209,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     auth.setupAuthListeners(elements);
     userManagement.setupAddUserButton(elements);
 
-    // Ukryj pola email i hasła na początku
-    let originalEmailInput = null;
-    let originalPasswordInput = null;
-    let emailParent = null;
-    let passwordParent = null;
-
-    // Całkowicie usuń pola z DOM i zapisz ich kopie
+    // Zmień właściwości pól formularza, aby uniknąć wykrycia przez menedżery haseł
     if (elements.authElements.emailInput) {
-      emailParent = elements.authElements.emailInput.parentNode;
-      originalEmailInput = elements.authElements.emailInput;
-      emailParent.removeChild(elements.authElements.emailInput);
-      elements.authElements.emailInput = null;
+      // Zapamiętaj oryginalne atrybuty
+      const originalEmailType = elements.authElements.emailInput.type;
+      const originalEmailName = elements.authElements.emailInput.name;
+      const originalEmailId = elements.authElements.emailInput.id;
+      const originalEmailPlaceholder = elements.authElements.emailInput.placeholder;
+
+      // Zmień na niezwiązane z logowaniem
+      elements.authElements.emailInput.type = "hidden";
+      elements.authElements.emailInput.name =
+        "fake_field_" + Math.random().toString(36).substring(2, 15);
+      if (elements.authElements.emailInput.id) {
+        elements.authElements.emailInput.id =
+          "fake_field_" + Math.random().toString(36).substring(2, 15);
+      }
+      elements.authElements.emailInput.removeAttribute("placeholder");
+      elements.authElements.emailInput.setAttribute("autocomplete", "off");
+      elements.authElements.emailInput.setAttribute("data-lpignore", "true");
+      elements.authElements.emailInput.setAttribute("data-1p-ignore", "true");
+      elements.authElements.emailInput.setAttribute("aria-hidden", "true");
+
+      // Przywróć oryginalne atrybuty po kliknięciu przycisku logowania
+      if (elements.authElements.initialLoginButton) {
+        elements.authElements.initialLoginButton.addEventListener(
+          "click",
+          () => {
+            elements.authElements.emailInput.type = originalEmailType;
+            elements.authElements.emailInput.name = originalEmailName;
+            if (originalEmailId) {
+              elements.authElements.emailInput.id = originalEmailId;
+            }
+            if (originalEmailPlaceholder) {
+              elements.authElements.emailInput.placeholder = originalEmailPlaceholder;
+            }
+            elements.authElements.emailInput.removeAttribute("aria-hidden");
+          },
+          { once: true }
+        );
+      }
     }
 
     if (elements.authElements.passwordInput) {
-      passwordParent = elements.authElements.passwordInput.parentNode;
-      originalPasswordInput = elements.authElements.passwordInput;
-      passwordParent.removeChild(elements.authElements.passwordInput);
-      elements.authElements.passwordInput = null;
-    }
+      // Zapamiętaj oryginalne atrybuty
+      const originalPwdType = elements.authElements.passwordInput.type;
+      const originalPwdName = elements.authElements.passwordInput.name;
+      const originalPwdId = elements.authElements.passwordInput.id;
+      const originalPwdPlaceholder = elements.authElements.passwordInput.placeholder;
 
-    // Pokaż pola email i hasła po kliknięciu przycisku logowania
-    if (elements.authElements.initialLoginButton) {
-      elements.authElements.initialLoginButton.addEventListener("click", () => {
-        // Dodaj z powrotem pola email i hasła
-        if (originalEmailInput && emailParent) {
-          emailParent.appendChild(originalEmailInput);
-          elements.authElements.emailInput = originalEmailInput;
-        }
+      // Zmień na niezwiązane z logowaniem
+      elements.authElements.passwordInput.type = "hidden";
+      elements.authElements.passwordInput.name =
+        "fake_field_" + Math.random().toString(36).substring(2, 15);
+      if (elements.authElements.passwordInput.id) {
+        elements.authElements.passwordInput.id =
+          "fake_field_" + Math.random().toString(36).substring(2, 15);
+      }
+      elements.authElements.passwordInput.removeAttribute("placeholder");
+      elements.authElements.passwordInput.setAttribute("autocomplete", "off");
+      elements.authElements.passwordInput.setAttribute("data-lpignore", "true");
+      elements.authElements.passwordInput.setAttribute("data-1p-ignore", "true");
+      elements.authElements.passwordInput.setAttribute("aria-hidden", "true");
 
-        if (originalPasswordInput && passwordParent) {
-          passwordParent.appendChild(originalPasswordInput);
-          elements.authElements.passwordInput = originalPasswordInput;
-        }
-      });
+      // Przywróć oryginalne atrybuty po kliknięciu przycisku logowania
+      if (elements.authElements.initialLoginButton) {
+        elements.authElements.initialLoginButton.addEventListener(
+          "click",
+          () => {
+            elements.authElements.passwordInput.type = originalPwdType;
+            elements.authElements.passwordInput.name = originalPwdName;
+            if (originalPwdId) {
+              elements.authElements.passwordInput.id = originalPwdId;
+            }
+            if (originalPwdPlaceholder) {
+              elements.authElements.passwordInput.placeholder = originalPwdPlaceholder;
+            }
+            elements.authElements.passwordInput.removeAttribute("aria-hidden");
+          },
+          { once: true }
+        );
+      }
     }
 
     // Setup dialog swipe to dismiss
