@@ -208,6 +208,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     auth.setupAuthListeners(elements);
     userManagement.setupAddUserButton(elements);
 
+    // Prevent 1Password from auto-showing on mobile
+    if (elements.authElements.emailInput && elements.authElements.passwordInput) {
+      // Add readonly attribute to prevent password managers from auto-triggering
+      elements.authElements.emailInput.setAttribute("readonly", "readonly");
+      elements.authElements.passwordInput.setAttribute("readonly", "readonly");
+
+      // Remove readonly when user focuses the field
+      elements.authElements.emailInput.addEventListener("focus", function () {
+        this.removeAttribute("readonly");
+      });
+      elements.authElements.passwordInput.addEventListener("focus", function () {
+        this.removeAttribute("readonly");
+      });
+
+      // Also handle click event for better mobile experience
+      elements.authElements.emailInput.addEventListener("click", function () {
+        this.removeAttribute("readonly");
+      });
+      elements.authElements.passwordInput.addEventListener("click", function () {
+        this.removeAttribute("readonly");
+      });
+    }
+
     // Setup dialog swipe to dismiss
     setupDialogSwipeGesture(elements.authElements.theDialog);
 
