@@ -75,7 +75,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       emailInput: document.querySelector("[data-dialog-login] [data-action-email]"),
       passwordInput: document.querySelector("[data-dialog-login] [data-action-password]"),
-      confirmLoginButton: document.querySelector('[data-dialog-login] [data-button-action="confirm"]'),
+      confirmLoginButton: document.querySelector(
+        '[data-dialog-login] [data-button-action="confirm"]'
+      ),
       logoutButton: document.querySelector('[data-button-action="logout"]'),
       logoutButtonLabel: document.querySelector('[data-button-action="logout"] .button_label'),
     },
@@ -143,7 +145,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const oneRepTarget = row.querySelector(`[data-user-max="${key}"] [data-one-rep]`);
 
         if (key !== "press" && maxRepsTarget) {
-          formatters.displayValue(maxRepsTarget, `${key}-max`, fields[`${key}-max`] !== null && fields[`${key}-max`] !== undefined ? fields[`${key}-max`] : 0);
+          formatters.displayValue(
+            maxRepsTarget,
+            `${key}-max`,
+            fields[`${key}-max`] !== null && fields[`${key}-max`] !== undefined
+              ? fields[`${key}-max`]
+              : 0
+          );
         } else if (key === "press") {
           const pressMaxWrap = row.querySelector(`[data-user-max="${key}"] [data-max-reps-wrap]`);
           if (pressMaxWrap) {
@@ -152,7 +160,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (oneRepTarget) {
-          formatters.displayValue(oneRepTarget, `${key}-one`, fields[`${key}-one`] !== null && fields[`${key}-one`] !== undefined ? fields[`${key}-one`] : 0);
+          formatters.displayValue(
+            oneRepTarget,
+            `${key}-one`,
+            fields[`${key}-one`] !== null && fields[`${key}-one`] !== undefined
+              ? fields[`${key}-one`]
+              : 0
+          );
         }
       });
 
@@ -175,9 +189,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     calculations.calculateELO(elements);
 
-    sorting.sortRows(state, elements, state.currentSort.exercise, state.currentSort.type, state.currentSort.direction);
+    sorting.sortRows(
+      state,
+      elements,
+      state.currentSort.exercise,
+      state.currentSort.type,
+      state.currentSort.direction
+    );
 
-    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+    const visibleRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
     calculations.updateRankAndMedals(visibleRows);
 
     sorting.setupSorting(state, elements);
@@ -185,6 +207,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     userManagement.setupDialogInteractions(elements);
     auth.setupAuthListeners(elements);
     userManagement.setupAddUserButton(elements);
+
+    // Setup dialog swipe to dismiss
+    setupDialogSwipeGesture(elements.authElements.theDialog);
 
     window.PepekAnimations = {
       getSortingConfig: () => {
@@ -223,7 +248,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           const h = config.highlight;
           const target = state.animations.edit.highlight;
 
-          if (typeof h.duration === "number") target.duration = Math.max(0.1, Math.min(2, h.duration));
+          if (typeof h.duration === "number")
+            target.duration = Math.max(0.1, Math.min(2, h.duration));
           if (typeof h.ease === "string") target.ease = h.ease;
           if (h.background) target.background = h.background;
           if (typeof h.scale === "number") target.scale = Math.max(0.5, Math.min(2, h.scale));
@@ -235,7 +261,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           const s = config.sort;
           const target = state.animations.edit.sort;
 
-          if (typeof s.duration === "number") target.duration = Math.max(0.1, Math.min(2, s.duration));
+          if (typeof s.duration === "number")
+            target.duration = Math.max(0.1, Math.min(2, s.duration));
           if (typeof s.ease === "string") target.ease = s.ease;
           if (typeof s.delay === "number") target.delay = Math.max(0, Math.min(5, s.delay));
         }
@@ -244,7 +271,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           const r = config.reset;
           const target = state.animations.edit.reset;
 
-          if (typeof r.duration === "number") target.duration = Math.max(0.1, Math.min(2, r.duration));
+          if (typeof r.duration === "number")
+            target.duration = Math.max(0.1, Math.min(2, r.duration));
           if (typeof r.ease === "string") target.ease = r.ease;
           if (r.background) target.background = r.background;
           if (typeof r.scale === "number") target.scale = Math.max(0.5, Math.min(1.5, r.scale));
@@ -274,7 +302,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   } catch (err) {
     console.error("Error loading data:", err);
-    elements.tableBody.innerHTML = '<tr><td colspan="9">Wystąpił błąd podczas ładowania danych. Spróbuj odświeżyć stronę.</td></tr>';
+    elements.tableBody.innerHTML =
+      '<tr><td colspan="9">Wystąpił błąd podczas ładowania danych. Spróbuj odświeżyć stronę.</td></tr>';
 
     const loadingScreen = document.querySelector("[data-loading-screen]");
     if (loadingScreen) loadingScreen.dataset.loadingScreen = "loaded";
@@ -282,3 +311,99 @@ document.addEventListener("DOMContentLoaded", async () => {
     enableAnimationsAfterLoad();
   }
 });
+
+// Function to handle swipe down to close dialog on mobile
+function setupDialogSwipeGesture(dialogElement) {
+  if (!dialogElement) return;
+
+  let startY = 0;
+  let currentY = 0;
+  let isDragging = false;
+  const DISMISS_THRESHOLD = 150; // Pixels needed to swipe down to dismiss
+  const MOBILE_BREAKPOINT = 991; // Mobile breakpoint
+
+  function handleTouchStart(e) {
+    if (window.innerWidth > MOBILE_BREAKPOINT) return;
+
+    const touch = e.touches[0];
+    startY = touch.clientY;
+    currentY = startY;
+    isDragging = true;
+
+    dialogElement.style.transition = "none";
+    dialogElement.style.userSelect = "none";
+  }
+
+  function handleTouchMove(e) {
+    if (!isDragging || window.innerWidth > MOBILE_BREAKPOINT) return;
+
+    const touch = e.touches[0];
+    currentY = touch.clientY;
+    const deltaY = currentY - startY;
+
+    // Only allow dragging down, not up
+    if (deltaY < 0) return;
+
+    // Apply transform with translateY and scale reduction as dialog is pulled down
+    const translateY = Math.min(deltaY, DISMISS_THRESHOLD * 1.5);
+    const scale = Math.max(0.9, 1 - translateY / (DISMISS_THRESHOLD * 5));
+
+    dialogElement.style.transform = `translateY(${translateY}px) scale(${scale})`;
+
+    // If they're dragging down significantly, prevent default to avoid page scroll
+    if (deltaY > 10) {
+      e.preventDefault();
+    }
+  }
+
+  function handleTouchEnd() {
+    if (!isDragging || window.innerWidth > MOBILE_BREAKPOINT) return;
+
+    const deltaY = currentY - startY;
+
+    // Reset transition for smooth animation
+    dialogElement.style.transition = "transform 0.3s ease-out";
+
+    if (deltaY >= DISMISS_THRESHOLD) {
+      // Swipe threshold reached, dismiss the dialog
+      dialogElement.style.transform = `translateY(${window.innerHeight}px) scale(0.9)`;
+
+      // After animation completes, hide the dialog properly
+      setTimeout(() => {
+        // Close the dialog properly using the native close method
+        if (dialogElement.close) {
+          dialogElement.close();
+        } else if (dialogElement.classList.contains("open")) {
+          dialogElement.classList.remove("open");
+        }
+
+        // Reset all styles
+        dialogElement.style.transform = "";
+        dialogElement.style.transition = "";
+        dialogElement.style.userSelect = "";
+
+        // Clear any editing user ID that might be set
+        if (dialogElement.dataset && dialogElement.dataset.editingUserId) {
+          delete dialogElement.dataset.editingUserId;
+        }
+      }, 300);
+    } else {
+      // Not enough to dismiss, snap back
+      dialogElement.style.transform = "";
+
+      // Reset styles after animation
+      setTimeout(() => {
+        dialogElement.style.transition = "";
+        dialogElement.style.userSelect = "";
+      }, 300);
+    }
+
+    isDragging = false;
+  }
+
+  // Add event listeners
+  dialogElement.addEventListener("touchstart", handleTouchStart, { passive: false });
+  dialogElement.addEventListener("touchmove", handleTouchMove, { passive: false });
+  dialogElement.addEventListener("touchend", handleTouchEnd);
+  dialogElement.addEventListener("touchcancel", handleTouchEnd);
+}
