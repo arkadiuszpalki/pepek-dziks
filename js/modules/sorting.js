@@ -219,6 +219,40 @@ export function setupSorting(state, elements) {
 
   resetButtonContainer.style.display = "none";
 
+  // Sprawdź czy jesteśmy na urządzeniu mobilnym
+  const isMobile = () => window.innerWidth <= 991;
+
+  // Ustaw pozycjonowanie przycisku reset w zależności od urządzenia
+  const positionResetButton = () => {
+    if (isMobile()) {
+      // Na mobile dodaj klasę do kontenera przycisku reset
+      resetButtonContainer.classList.add("mobile-reset-button");
+      // Dodaj styl dla przycisku, jeśli jeszcze nie istnieje
+      if (!document.getElementById("mobile-reset-button-style")) {
+        const style = document.createElement("style");
+        style.id = "mobile-reset-button-style";
+        style.textContent = `
+          .mobile-reset-button {
+            position: absolute !important;
+            right: 0 !important;
+            top: 0 !important;
+            display: none;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    } else {
+      // Na desktopie usuń klasę
+      resetButtonContainer.classList.remove("mobile-reset-button");
+    }
+  };
+
+  // Wywołaj funkcję przy starcie
+  positionResetButton();
+
+  // Nasłuchuj zmian rozmiaru okna
+  window.addEventListener("resize", positionResetButton);
+
   // Funkcja do pokazania tylko kolumny ELO
   const showOnlyEloColumn = () => {
     // Ukryj wszystkie kolumny danych
@@ -234,6 +268,11 @@ export function setupSorting(state, elements) {
     document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
       column.setAttribute("data-mobile-solo", "show");
     });
+
+    // Dla mobilnych urządzeń - ukryj przycisk reset jeśli nie ma aktywnego sortowania
+    if (isMobile() && state.currentSort.exercise === "elo" && state.currentSort.type === "score") {
+      resetButtonContainer.style.display = "none";
+    }
   };
 
   // Funkcja do pokazania tylko wybranej kolumny ćwiczenia
@@ -251,6 +290,11 @@ export function setupSorting(state, elements) {
     document.querySelectorAll(`[data-user-max="${exerciseKey}"]`).forEach((column) => {
       column.setAttribute("data-mobile-solo", "show");
     });
+
+    // Na mobilnych urządzeniach zawsze pokazuj przycisk reset gdy jest aktywne sortowanie
+    if (isMobile() && resetButtonContainer) {
+      resetButtonContainer.style.display = "";
+    }
   };
 
   // Zastosuj domyślny widok mobilny przy ładowaniu strony
@@ -319,13 +363,20 @@ export function setupSorting(state, elements) {
     }
 
     if (resetButtonContainer) {
-      const activeButtonWrap = button.closest(".button_wrap");
-      if (activeButtonWrap && activeButtonWrap.parentNode === sortButtonsContainer) {
-        sortButtonsContainer.insertBefore(resetButtonContainer, activeButtonWrap);
+      if (isMobile()) {
+        // Na mobile przycisk reset zawsze będzie po prawej stronie
+        sortButtonsContainer.appendChild(resetButtonContainer);
         resetButtonContainer.style.display = "";
       } else {
-        sortButtonsContainer.prepend(resetButtonContainer);
-        resetButtonContainer.style.display = "";
+        // Na desktopie zachowujemy oryginalne zachowanie
+        const activeButtonWrap = button.closest(".button_wrap");
+        if (activeButtonWrap && activeButtonWrap.parentNode === sortButtonsContainer) {
+          sortButtonsContainer.insertBefore(resetButtonContainer, activeButtonWrap);
+          resetButtonContainer.style.display = "";
+        } else {
+          sortButtonsContainer.prepend(resetButtonContainer);
+          resetButtonContainer.style.display = "";
+        }
       }
     }
   });
@@ -343,7 +394,10 @@ export function setupSorting(state, elements) {
     // Zastosuj widok mobilny - przywróć tylko kolumnę ELO
     showOnlyEloColumn();
 
-    resetButtonContainer.style.display = "none";
+    // Na urządzeniu mobilnym zachowujemy widoczność przycisku reset
+    if (!isMobile()) {
+      resetButtonContainer.style.display = "none";
+    }
 
     sortButtonsContainer
       .querySelectorAll("button[data-button-action^='sort-'].is-sort-active")
