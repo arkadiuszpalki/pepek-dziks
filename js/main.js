@@ -209,6 +209,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     auth.setupAuthListeners(elements);
     userManagement.setupAddUserButton(elements);
 
+    // Ukryj pola email i hasła na początku
+    if (elements.authElements.emailInput) {
+      elements.authElements.emailInput.style.display = "none";
+    }
+    if (elements.authElements.passwordInput) {
+      elements.authElements.passwordInput.style.display = "none";
+    }
+
+    // Pokaż pola email i hasła po kliknięciu przycisku logowania
+    if (elements.authElements.initialLoginButton) {
+      elements.authElements.initialLoginButton.addEventListener("click", () => {
+        if (elements.authElements.emailInput) {
+          elements.authElements.emailInput.style.display = "";
+        }
+        if (elements.authElements.passwordInput) {
+          elements.authElements.passwordInput.style.display = "";
+        }
+      });
+    }
+
     // Setup dialog swipe to dismiss
     setupDialogSwipeGesture(elements.authElements.theDialog);
 
