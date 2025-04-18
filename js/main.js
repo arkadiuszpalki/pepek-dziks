@@ -210,44 +210,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     userManagement.setupAddUserButton(elements);
 
     // Ukryj pola email i hasła na początku
-    if (elements.authElements.emailInput) {
-      elements.authElements.emailInput.style.display = "none";
-      elements.authElements.emailInput.setAttribute("autocomplete", "off");
-      elements.authElements.emailInput.setAttribute("data-lpignore", "true");
-      elements.authElements.emailInput.setAttribute("data-1p-ignore", "true");
+    let originalEmailInput = null;
+    let originalPasswordInput = null;
+    let emailParent = null;
+    let passwordParent = null;
 
-      // Zapamiętaj oryginalny typ
-      elements.authElements.emailInput.dataset.originalType = elements.authElements.emailInput.type;
-      elements.authElements.emailInput.type = "text";
+    // Całkowicie usuń pola z DOM i zapisz ich kopie
+    if (elements.authElements.emailInput) {
+      emailParent = elements.authElements.emailInput.parentNode;
+      originalEmailInput = elements.authElements.emailInput;
+      emailParent.removeChild(elements.authElements.emailInput);
+      elements.authElements.emailInput = null;
     }
 
     if (elements.authElements.passwordInput) {
-      elements.authElements.passwordInput.style.display = "none";
-      elements.authElements.passwordInput.setAttribute("autocomplete", "off");
-      elements.authElements.passwordInput.setAttribute("data-lpignore", "true");
-      elements.authElements.passwordInput.setAttribute("data-1p-ignore", "true");
-
-      // Zapamiętaj oryginalny typ i tymczasowo zmień
-      elements.authElements.passwordInput.dataset.originalType =
-        elements.authElements.passwordInput.type;
-      elements.authElements.passwordInput.type = "text";
+      passwordParent = elements.authElements.passwordInput.parentNode;
+      originalPasswordInput = elements.authElements.passwordInput;
+      passwordParent.removeChild(elements.authElements.passwordInput);
+      elements.authElements.passwordInput = null;
     }
 
     // Pokaż pola email i hasła po kliknięciu przycisku logowania
     if (elements.authElements.initialLoginButton) {
       elements.authElements.initialLoginButton.addEventListener("click", () => {
-        if (elements.authElements.emailInput) {
-          elements.authElements.emailInput.style.display = "";
-          // Przywróć oryginalny typ
-          elements.authElements.emailInput.type =
-            elements.authElements.emailInput.dataset.originalType || "email";
+        // Dodaj z powrotem pola email i hasła
+        if (originalEmailInput && emailParent) {
+          emailParent.appendChild(originalEmailInput);
+          elements.authElements.emailInput = originalEmailInput;
         }
 
-        if (elements.authElements.passwordInput) {
-          elements.authElements.passwordInput.style.display = "";
-          // Przywróć oryginalny typ
-          elements.authElements.passwordInput.type =
-            elements.authElements.passwordInput.dataset.originalType || "password";
+        if (originalPasswordInput && passwordParent) {
+          passwordParent.appendChild(originalPasswordInput);
+          elements.authElements.passwordInput = originalPasswordInput;
         }
       });
     }
