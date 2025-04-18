@@ -22,7 +22,11 @@ export function setupAuthListeners(elements) {
 
   if (elements.authElements.initialLoginButton) {
     elements.authElements.initialLoginButton.addEventListener("click", () => {
-      if (elements.authElements.theDialog && elements.authElements.loginWrapper && elements.authElements.editWrapper) {
+      if (
+        elements.authElements.theDialog &&
+        elements.authElements.loginWrapper &&
+        elements.authElements.editWrapper
+      ) {
         elements.authElements.loginWrapper.style.display = "";
         elements.authElements.editWrapper.style.display = "none";
 
@@ -31,7 +35,15 @@ export function setupAuthListeners(elements) {
 
         elements.authElements.emailInput.classList.remove("is-invalid");
         elements.authElements.passwordInput.classList.remove("is-invalid");
-        elements.authElements.theDialog.showModal();
+
+        if (elements.authElements.theDialog.open) {
+          elements.authElements.theDialog.close();
+          setTimeout(() => {
+            elements.authElements.theDialog.showModal();
+          }, 10);
+        } else {
+          elements.authElements.theDialog.showModal();
+        }
       } else {
         console.error("Dialog or its wrappers not found!");
       }
@@ -54,9 +66,12 @@ export function setupAuthListeners(elements) {
       }
 
       elements.authElements.confirmLoginButton.disabled = true;
-      const originalButtonText = elements.authElements.confirmLoginButton.querySelector(".button_label")?.textContent || "Zaloguj";
+      const originalButtonText =
+        elements.authElements.confirmLoginButton.querySelector(".button_label")?.textContent ||
+        "Zaloguj";
       if (elements.authElements.confirmLoginButton.querySelector(".button_label")) {
-        elements.authElements.confirmLoginButton.querySelector(".button_label").textContent = "Logowanie...";
+        elements.authElements.confirmLoginButton.querySelector(".button_label").textContent =
+          "Logowanie...";
       }
 
       try {
@@ -78,7 +93,8 @@ export function setupAuthListeners(elements) {
       } finally {
         elements.authElements.confirmLoginButton.disabled = false;
         if (elements.authElements.confirmLoginButton.querySelector(".button_label")) {
-          elements.authElements.confirmLoginButton.querySelector(".button_label").textContent = originalButtonText;
+          elements.authElements.confirmLoginButton.querySelector(".button_label").textContent =
+            originalButtonText;
         }
       }
     });
@@ -129,7 +145,10 @@ export async function updateAuthStateUI(user, elements) {
   if (user) {
     currentUserId = user.id;
 
-    if (elements.authElements.initialLoginButton && elements.authElements.initialLoginButton.parentElement) {
+    if (
+      elements.authElements.initialLoginButton &&
+      elements.authElements.initialLoginButton.parentElement
+    ) {
       elements.authElements.initialLoginButton.parentElement.style.display = "none";
     }
     if (elements.authElements.logoutButton && elements.authElements.logoutButton.parentElement) {
@@ -147,7 +166,8 @@ export async function updateAuthStateUI(user, elements) {
           currentUserCanEdit = true;
         }
 
-        elements.authElements.logoutButtonLabel.textContent = profile?.username || user.email.split("@")[0];
+        elements.authElements.logoutButtonLabel.textContent =
+          profile?.username || user.email.split("@")[0];
       } catch (error) {
         elements.authElements.logoutButtonLabel.textContent = user.email.split("@")[0];
 
@@ -164,7 +184,10 @@ export async function updateAuthStateUI(user, elements) {
     currentUserIsAdmin = false;
     currentUserCanEdit = false;
 
-    if (elements.authElements.initialLoginButton && elements.authElements.initialLoginButton.parentElement) {
+    if (
+      elements.authElements.initialLoginButton &&
+      elements.authElements.initialLoginButton.parentElement
+    ) {
       elements.authElements.initialLoginButton.parentElement.style.display = "";
     }
     if (elements.authElements.logoutButton && elements.authElements.logoutButton.parentElement) {
