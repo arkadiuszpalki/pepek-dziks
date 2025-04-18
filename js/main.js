@@ -8,6 +8,77 @@ import * as sorting from "./modules/sorting.js";
 import * as filtering from "./modules/filtering.js";
 import * as userManagement from "./modules/userManagement.js";
 
+// Prevent password managers from auto-showing by immediately transforming the login fields
+// This needs to happen before DOMContentLoaded to beat password managers
+(function () {
+  // Function to be executed as early as possible
+  function preventPasswordManagerPopup() {
+    const emailInput = document.querySelector("[data-dialog-login] [data-action-email]");
+    const passwordInput = document.querySelector("[data-dialog-login] [data-action-password]");
+
+    if (emailInput && passwordInput) {
+      // Store original values for later restoration
+      if (!emailInput.hasAttribute("data-original-type")) {
+        emailInput.setAttribute("data-original-type", emailInput.type || "text");
+      }
+
+      if (!passwordInput.hasAttribute("data-original-type")) {
+        passwordInput.setAttribute("data-original-type", passwordInput.type || "password");
+      }
+
+      // Change input types to non-standard values to prevent detection
+      emailInput.type = "tel"; // Use tel instead of email
+      passwordInput.type = "tel"; // Use tel instead of password
+
+      // Add attributes to prevent password manager detection
+      emailInput.setAttribute("autocomplete", "off");
+      passwordInput.setAttribute("autocomplete", "off");
+      emailInput.setAttribute("data-lpignore", "true");
+      passwordInput.setAttribute("data-lpignore", "true");
+      emailInput.setAttribute("data-1p-ignore", "true");
+      passwordInput.setAttribute("data-1p-ignore", "true");
+
+      // Set unique, non-standard names to further avoid detection
+      emailInput.setAttribute("name", "contact_" + Math.random().toString(36).substring(2, 8));
+      passwordInput.setAttribute("name", "code_" + Math.random().toString(36).substring(2, 8));
+
+      // Listen for DOM ready to restore functionality after a slight delay
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(() => {
+          const restoreFields = function () {
+            // Restore email field
+            emailInput.type = emailInput.getAttribute("data-original-type");
+
+            // Only restore password field when focused to further delay password manager
+            passwordInput.addEventListener("focus", function onFocus() {
+              passwordInput.type = passwordInput.getAttribute("data-original-type");
+              passwordInput.removeEventListener("focus", onFocus);
+            });
+
+            // Remove the event listeners after first restoration
+            document.body.removeEventListener("click", restoreFields);
+            document.body.removeEventListener("touchstart", restoreFields);
+          };
+
+          // Restore fields on user interaction with the page
+          document.body.addEventListener("click", restoreFields);
+          document.body.addEventListener("touchstart", restoreFields);
+        }, 500); // Delay restoration by 500ms after DOM is loaded
+      });
+    }
+  }
+
+  // Try to run immediately
+  preventPasswordManagerPopup();
+
+  // Also try to run when DOM begins to be parsed, but before fully loaded
+  document.addEventListener("readystatechange", function () {
+    if (document.readyState === "interactive") {
+      preventPasswordManagerPopup();
+    }
+  });
+})();
+
 document.addEventListener("DOMContentLoaded", async () => {
   if (!window.gsap || !window.Flip) {
     console.warn("GSAP or Flip not loaded. Animations will be disabled.");
@@ -207,87 +278,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     userManagement.setupDialogInteractions(elements);
     auth.setupAuthListeners(elements);
     userManagement.setupAddUserButton(elements);
-
-    // Prevent 1Password from auto-showing on mobile - advanced approach
-    if (elements.authElements.emailInput && elements.authElements.passwordInput) {
-      // Save original type of password field
-      const originalPasswordType = elements.authElements.passwordInput.type;
-
-      // Temporarily set password field to text and change attributes to prevent detection
-      elements.authElements.passwordInput.type = "text";
-
-      // Add attributes that prevent password managers from detecting the fields
-      elements.authElements.emailInput.setAttribute("autocomplete", "off");
-      elements.authElements.passwordInput.setAttribute("autocomplete", "off");
-
-      // Add data attributes that some password managers check
-      elements.authElements.emailInput.setAttribute("data-lpignore", "true");
-      elements.authElements.passwordInput.setAttribute("data-lpignore", "true");
-      elements.authElements.emailInput.setAttribute("data-1p-ignore", "true");
-      elements.authElements.passwordInput.setAttribute("data-1p-ignore", "true");
-
-      // Use non-standard placeholder to avoid recognition
-      const originalEmailPlaceholder = elements.authElements.emailInput.placeholder;
-      const originalPasswordPlaceholder = elements.authElements.passwordInput.placeholder;
-      elements.authElements.emailInput.placeholder = "Kliknij, aby wprowadzić email";
-      elements.authElements.passwordInput.placeholder = "Kliknij, aby wprowadzić hasło";
-
-      // Restore field properties when user interacts with them
-      const restoreField = function (field, isPassword) {
-        // Remove all the prevention attributes
-        field.removeAttribute("autocomplete");
-        field.removeAttribute("data-lpignore");
-        field.removeAttribute("data-1p-ignore");
-
-        // Restore original type if it's a password field
-        if (isPassword) {
-          field.type = originalPasswordType;
-          field.placeholder = originalPasswordPlaceholder;
-        } else {
-          field.placeholder = originalEmailPlaceholder;
-        }
-
-        // Remove these listeners after first interaction
-        field.removeEventListener("focus", field._restoreFunction);
-        field.removeEventListener("click", field._restoreFunction);
-        field.removeEventListener("touchstart", field._restoreFunction);
-      };
-
-      elements.authElements.emailInput._restoreFunction = function () {
-        restoreField(elements.authElements.emailInput, false);
-      };
-
-      elements.authElements.passwordInput._restoreFunction = function () {
-        restoreField(elements.authElements.passwordInput, true);
-      };
-
-      // Add multiple event listeners for better mobile compatibility
-      elements.authElements.emailInput.addEventListener(
-        "focus",
-        elements.authElements.emailInput._restoreFunction
-      );
-      elements.authElements.emailInput.addEventListener(
-        "click",
-        elements.authElements.emailInput._restoreFunction
-      );
-      elements.authElements.emailInput.addEventListener(
-        "touchstart",
-        elements.authElements.emailInput._restoreFunction
-      );
-
-      elements.authElements.passwordInput.addEventListener(
-        "focus",
-        elements.authElements.passwordInput._restoreFunction
-      );
-      elements.authElements.passwordInput.addEventListener(
-        "click",
-        elements.authElements.passwordInput._restoreFunction
-      );
-      elements.authElements.passwordInput.addEventListener(
-        "touchstart",
-        elements.authElements.passwordInput._restoreFunction
-      );
-    }
 
     // Setup dialog swipe to dismiss
     setupDialogSwipeGesture(elements.authElements.theDialog);
