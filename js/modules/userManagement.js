@@ -84,7 +84,7 @@ export function setupDialogInteractions(elements) {
 
       wrapper.addEventListener("click", (event) => {
         if (event.target !== valueSpan) {
-          valueSpan.focus();
+          // valueSpan.focus(); // Autofocus wyłączony globalnie
         }
       });
 
