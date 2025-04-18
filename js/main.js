@@ -212,9 +212,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Ukryj pola email i hasła na początku
     if (elements.authElements.emailInput) {
       elements.authElements.emailInput.style.display = "none";
+      elements.authElements.emailInput.setAttribute("autocomplete", "off");
+      elements.authElements.emailInput.setAttribute("data-lpignore", "true");
+      elements.authElements.emailInput.setAttribute("data-1p-ignore", "true");
+
+      // Zapamiętaj oryginalny typ
+      elements.authElements.emailInput.dataset.originalType = elements.authElements.emailInput.type;
+      elements.authElements.emailInput.type = "text";
     }
+
     if (elements.authElements.passwordInput) {
       elements.authElements.passwordInput.style.display = "none";
+      elements.authElements.passwordInput.setAttribute("autocomplete", "off");
+      elements.authElements.passwordInput.setAttribute("data-lpignore", "true");
+      elements.authElements.passwordInput.setAttribute("data-1p-ignore", "true");
+
+      // Zapamiętaj oryginalny typ i tymczasowo zmień
+      elements.authElements.passwordInput.dataset.originalType =
+        elements.authElements.passwordInput.type;
+      elements.authElements.passwordInput.type = "text";
     }
 
     // Pokaż pola email i hasła po kliknięciu przycisku logowania
@@ -222,9 +238,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       elements.authElements.initialLoginButton.addEventListener("click", () => {
         if (elements.authElements.emailInput) {
           elements.authElements.emailInput.style.display = "";
+          // Przywróć oryginalny typ
+          elements.authElements.emailInput.type =
+            elements.authElements.emailInput.dataset.originalType || "email";
         }
+
         if (elements.authElements.passwordInput) {
           elements.authElements.passwordInput.style.display = "";
+          // Przywróć oryginalny typ
+          elements.authElements.passwordInput.type =
+            elements.authElements.passwordInput.dataset.originalType || "password";
         }
       });
     }
