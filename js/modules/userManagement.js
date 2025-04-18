@@ -4,11 +4,54 @@ import * as api from "./api.js";
 import * as auth from "./auth.js";
 import { displayValue } from "../utils/formatters.js";
 
+// Funkcja do blokowania przewijania strony, gdy dialog jest otwarty
+function toggleBodyScroll(disable) {
+  if (disable) {
+    // Zapisz aktualną pozycję przewijania
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.overflowY = "scroll";
+
+    // Upewnij się, że dialog może przewijać wewnętrznie, jeśli jego zawartość jest za duża
+    const dialog = document.querySelector(".dialog");
+    if (dialog) {
+      dialog.style.maxHeight = "90vh";
+      dialog.style.overflowY = "auto";
+    }
+  } else {
+    // Przywróć pozycję przewijania
+    const scrollY = document.body.style.top;
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+    document.body.style.overflowY = "";
+    window.scrollTo(0, parseInt(scrollY || "0") * -1);
+  }
+}
+
 export function setupDialogInteractions(elements) {
   const dialog = elements.authElements.theDialog;
   if (!dialog) {
     return;
   }
+
+  // Blokuj scroll strony, gdy dialog jest otwarty
+  dialog.addEventListener("close", () => {
+    toggleBodyScroll(false);
+  });
+
+  dialog.addEventListener("showModal", () => {
+    toggleBodyScroll(true);
+  });
+
+  // Alternatywne nasłuchiwanie otwarcia dialogu
+  const originalShowModal = dialog.showModal;
+  dialog.showModal = function () {
+    originalShowModal.apply(this, arguments);
+    toggleBodyScroll(true);
+  };
 
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) {
@@ -18,7 +61,9 @@ export function setupDialogInteractions(elements) {
     }
   });
 
-  const inputWrappers = dialog.querySelectorAll("[data-action-input], [data-action-input-max-reps], [data-action-input-one-rep]");
+  const inputWrappers = dialog.querySelectorAll(
+    "[data-action-input], [data-action-input-max-reps], [data-action-input-one-rep]"
+  );
 
   inputWrappers.forEach((wrapper) => {
     if (wrapper.dataset.actionInput === "sex") return;
@@ -84,7 +129,9 @@ export function setupDialogInteractions(elements) {
       });
 
       const isNumericInput =
-        wrapper.hasAttribute("data-action-input-max-reps") || wrapper.hasAttribute("data-action-input-one-rep") || wrapper.dataset.actionInput === "weight";
+        wrapper.hasAttribute("data-action-input-max-reps") ||
+        wrapper.hasAttribute("data-action-input-one-rep") ||
+        wrapper.dataset.actionInput === "weight";
 
       if (isNumericInput) {
         valueSpan.setAttribute("inputmode", "numeric");
@@ -98,7 +145,10 @@ export function setupDialogInteractions(elements) {
             const selection = window.getSelection();
             const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
             const currentOffset = range ? range.startOffset : 0;
-            const textNode = range && range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer : event.target.firstChild;
+            const textNode =
+              range && range.startContainer.nodeType === Node.TEXT_NODE
+                ? range.startContainer
+                : event.target.firstChild;
 
             let nonDigitsBeforeCursor = 0;
             if (textNode && currentOffset > 0) {
@@ -111,7 +161,10 @@ export function setupDialogInteractions(elements) {
             try {
               const newTextNode = event.target.firstChild;
               if (newTextNode) {
-                const newOffset = Math.max(0, Math.min(currentOffset - nonDigitsBeforeCursor, digitsOnly.length));
+                const newOffset = Math.max(
+                  0,
+                  Math.min(currentOffset - nonDigitsBeforeCursor, digitsOnly.length)
+                );
                 const newRange = document.createRange();
                 newRange.setStart(newTextNode, newOffset);
                 newRange.collapse(true);
@@ -202,8 +255,12 @@ export function gatherAndSubmitUserData(dialog, elements) {
   userData.waga = !isNaN(weightValue) && weightValue > 0 ? weightValue : null;
 
   Object.keys(CONFIG.exercises).forEach((key) => {
-    const maxRepsSpan = dialog.querySelector(`[data-action-input-max-reps="${key}"] [data-action-input-value]`);
-    const oneRepSpan = dialog.querySelector(`[data-action-input-one-rep="${key}"] [data-action-input-value]`);
+    const maxRepsSpan = dialog.querySelector(
+      `[data-action-input-max-reps="${key}"] [data-action-input-value]`
+    );
+    const oneRepSpan = dialog.querySelector(
+      `[data-action-input-one-rep="${key}"] [data-action-input-value]`
+    );
     let maxRepsValue = 0;
     let oneRepValue = 0;
 
@@ -400,7 +457,9 @@ export function refreshTableCalculations(highlightUserId, elements) {
     // Etap 1: Podświetlenie wiersza z GSAP
     animateEditedRow(highlightUserId, elements, () => {
       // Po podświetleniu wykonaj sortowanie (Etap 2)
-      const currentRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+      const currentRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+        (row) => row.style.display !== "none"
+      );
 
       const sortedRows = elements.functions.sortDataForRows(
         currentRows,
@@ -419,7 +478,9 @@ export function refreshTableCalculations(highlightUserId, elements) {
           const sortConfig = elements.state.animations.edit.sort;
 
           // Znajdź konkretny wiersz, który był edytowany
-          const editedRow = elements.tableBody.querySelector(`.table_row[data-user-id="${highlightUserId}"]`);
+          const editedRow = elements.tableBody.querySelector(
+            `.table_row[data-user-id="${highlightUserId}"]`
+          );
 
           // Zapisz stan przed sortowaniem
           const flipState = Flip.getState(currentRows, {
@@ -456,7 +517,9 @@ export function refreshTableCalculations(highlightUserId, elements) {
     });
   } else {
     // Standardowe sortowanie bez highlightingu
-    const currentRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter((row) => row.style.display !== "none");
+    const currentRows = Array.from(elements.tableBody.querySelectorAll(".table_row")).filter(
+      (row) => row.style.display !== "none"
+    );
 
     const sortedRows = elements.functions.sortDataForRows(
       currentRows,
@@ -673,7 +736,10 @@ export function openEditDialog(userId = null, elements) {
     dialog.dataset.editingUserId = userId;
 
     const nameValue = row.querySelector("[data-user-name]")?.dataset.value || "";
-    populateInput('[data-dialog-edit] [data-action-input="name"] [data-action-input-value]', nameValue);
+    populateInput(
+      '[data-dialog-edit] [data-action-input="name"] [data-action-input-value]',
+      nameValue
+    );
 
     const sexValue = row.querySelector("[data-user-sex]")?.dataset.value?.toUpperCase() || "M";
     const sexToggle = dialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
@@ -715,8 +781,16 @@ export function openEditDialog(userId = null, elements) {
   } else {
     delete dialog.dataset.editingUserId;
 
-    populateInput('[data-dialog-edit] [data-action-input="name"] [data-action-input-value]', "", true);
-    populateInput('[data-dialog-edit] [data-action-input="weight"] [data-action-input-value]', "", true);
+    populateInput(
+      '[data-dialog-edit] [data-action-input="name"] [data-action-input-value]',
+      "",
+      true
+    );
+    populateInput(
+      '[data-dialog-edit] [data-action-input="weight"] [data-action-input-value]',
+      "",
+      true
+    );
 
     Object.keys(CONFIG.exercises).forEach((key) => {
       const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] [data-action-input-value]`;
@@ -751,10 +825,20 @@ export function openEditDialog(userId = null, elements) {
     }
   }
 
-  dialog.querySelectorAll("[data-dialog-edit] .is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+  dialog
+    .querySelectorAll("[data-dialog-edit] .is-invalid")
+    .forEach((el) => el.classList.remove("is-invalid"));
 
-  dialog.close();
-  dialog.showModal();
+  // Zamknij dialog przed ponownym otwarciem, aby uniknąć problemów z zablokowanym scrollem
+  if (dialog.open) {
+    dialog.close();
+    // Mały timeout, aby upewnić się, że dialog zdąży się zamknąć przed ponownym otwarciem
+    setTimeout(() => {
+      dialog.showModal();
+    }, 10);
+  } else {
+    dialog.showModal();
+  }
 
   auth.updateTableRowStyles(elements, userId);
 }
