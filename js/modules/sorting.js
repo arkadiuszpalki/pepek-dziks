@@ -230,27 +230,33 @@ export function setupSorting(state, elements) {
 
   // Obsługa przycisku toggle-view dla widoku mobilnego
   const toggleViewButton = document.querySelector("button[data-button-action='toggle-view']");
-  if (toggleViewButton && window.innerWidth <= 991) {
+  if (toggleViewButton) {
     // Sprawdź, czy istnieje zapisana preferencja użytkownika
-    const extrasVisible = localStorage.getItem("dziks_extras_visible") === "true";
+    const isExtraView = localStorage.getItem("dziks_view_mode") === "extra";
+
+    // Ustaw początkowy atrybut data-toggle-view
+    toggleViewButton.setAttribute("data-toggle-view", isExtraView ? "extra" : "main");
 
     // Ustaw początkowy stan widoczności extras
     document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
-      extrasElement.style.display = extrasVisible ? "grid" : "none";
+      extrasElement.style.display = isExtraView ? "grid" : "none";
     });
 
     // Dodaj obsługę kliknięcia przycisku
     toggleViewButton.addEventListener("click", () => {
-      // Odczytaj aktualny stan
-      const currentVisible = localStorage.getItem("dziks_extras_visible") === "true";
-      const newVisible = !currentVisible;
+      // Odczytaj aktualny stan z atrybutu
+      const currentView = toggleViewButton.getAttribute("data-toggle-view");
+      const newView = currentView === "main" ? "extra" : "main";
 
       // Zapisz nowy stan
-      localStorage.setItem("dziks_extras_visible", newVisible.toString());
+      localStorage.setItem("dziks_view_mode", newView);
 
-      // Zastosuj nowy stan
+      // Zmień atrybut przycisku
+      toggleViewButton.setAttribute("data-toggle-view", newView);
+
+      // Zmień widoczność extras
       document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
-        extrasElement.style.display = newVisible ? "grid" : "none";
+        extrasElement.style.display = newView === "extra" ? "grid" : "none";
       });
     });
   }
