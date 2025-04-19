@@ -168,7 +168,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       formatters.displayValue(row.querySelector("[data-user-name]"), "name", fields.name);
       formatters.displayValue(row.querySelector("[data-user-sex]"), "sex", fields.sex);
-      row.querySelector("[data-user-sex]").classList.add("muted");
       formatters.displayValue(row.querySelector("[data-user-weight]"), "weight", fields.weight);
 
       Object.entries(CONFIG.exercises).forEach(([key]) => {

@@ -22,11 +22,20 @@ export const displayValue = (element, key, value) => {
   if (!element) return;
 
   const valueSpan =
-    element.querySelector('[data-max-reps], [data-one-rep], [data-user-name], [data-user-sex], [data-user-weight], [data-elo], [data-one-rep="sum"]') ||
-    element;
+    element.querySelector(
+      '[data-max-reps], [data-one-rep], [data-user-name], [data-user-sex], [data-user-weight], [data-elo], [data-one-rep="sum"]'
+    ) || element;
+
+  // Zapisz oryginalną klasę przed zmianami
+  const hadTextMutedClass =
+    element.matches("[data-user-sex]") && valueSpan.classList.contains("text-muted");
 
   valueSpan.textContent = "";
-  valueSpan.classList.remove("text-muted");
+
+  // Usuń klasę text-muted tylko jeśli to nie jest element data-user-sex
+  if (!element.matches("[data-user-sex]")) {
+    valueSpan.classList.remove("text-muted");
+  }
 
   const existingInput = valueSpan.querySelector("input, select");
   if (existingInput) existingInput.remove();
@@ -36,9 +45,17 @@ export const displayValue = (element, key, value) => {
   const formatted = formatFieldValue(key, value);
   valueSpan.textContent = formatted.text;
 
-  if (formatted.muted) {
-    valueSpan.classList.add("text-muted");
+  // Jeśli to element data-user-sex, zachowaj oryginalną klasę
+  if (element.matches("[data-user-sex]")) {
+    if (hadTextMutedClass) {
+      valueSpan.classList.add("text-muted");
+    }
   } else {
-    valueSpan.classList.remove("text-muted");
+    // Dla innych elementów stosuj normalne reguły
+    if (formatted.muted) {
+      valueSpan.classList.add("text-muted");
+    } else {
+      valueSpan.classList.remove("text-muted");
+    }
   }
 };
