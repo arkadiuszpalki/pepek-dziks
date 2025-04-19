@@ -324,6 +324,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Setup dialog swipe to dismiss
     setupDialogSwipeGesture(elements.authElements.theDialog);
 
+    // Add event listener for ELO info button
+    const eloInfoButton = document.querySelector('[data-button-action="elo-info"]');
+    const eloInfoDialog = document.querySelector("[data-dialog-elo-info]");
+
+    if (eloInfoButton && eloInfoDialog) {
+      // Add swipe gesture to ELO info dialog
+      setupDialogSwipeGesture(eloInfoDialog);
+
+      // Add click handler for the info button
+      eloInfoButton.addEventListener("click", () => {
+        if (eloInfoDialog.showModal) {
+          eloInfoDialog.showModal();
+        } else {
+          eloInfoDialog.classList.add("open");
+        }
+      });
+
+      // Close button inside the ELO info dialog
+      const closeEloInfoButton = eloInfoDialog.querySelector('[data-button-action="close"]');
+      if (closeEloInfoButton) {
+        closeEloInfoButton.addEventListener("click", () => {
+          if (eloInfoDialog.close) {
+            eloInfoDialog.close();
+          } else {
+            eloInfoDialog.classList.remove("open");
+          }
+        });
+      }
+    }
+
     window.PepekAnimations = {
       getSortingConfig: () => {
         return { ...state.animations.sort };
