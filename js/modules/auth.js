@@ -22,30 +22,25 @@ export function setupAuthListeners(elements) {
 
   if (elements.authElements.initialLoginButton) {
     elements.authElements.initialLoginButton.addEventListener("click", () => {
-      if (
-        elements.authElements.theDialog &&
-        elements.authElements.loginWrapper &&
-        elements.authElements.editWrapper
-      ) {
-        elements.authElements.loginWrapper.style.display = "";
-        elements.authElements.editWrapper.style.display = "none";
+      const loginDialog = elements.authElements.loginDialog || elements.authElements.theDialog;
 
+      if (loginDialog) {
         elements.authElements.emailInput.value = "";
         elements.authElements.passwordInput.value = "";
 
         elements.authElements.emailInput.classList.remove("is-invalid");
         elements.authElements.passwordInput.classList.remove("is-invalid");
 
-        if (elements.authElements.theDialog.open) {
-          elements.authElements.theDialog.close();
+        if (loginDialog.open) {
+          loginDialog.close();
           setTimeout(() => {
-            elements.authElements.theDialog.showModal();
+            loginDialog.showModal();
           }, 10);
         } else {
-          elements.authElements.theDialog.showModal();
+          loginDialog.showModal();
         }
       } else {
-        console.error("Dialog or its wrappers not found!");
+        console.error("Dialog logowania nie znaleziony!");
       }
     });
   }

@@ -7,6 +7,7 @@ import * as calculations from "./modules/calculations.js";
 import * as sorting from "./modules/sorting.js";
 import * as filtering from "./modules/filtering.js";
 import * as userManagement from "./modules/userManagement.js";
+import * as dialogManager from "./modules/dialog.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   // test
@@ -324,35 +325,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Setup dialog swipe to dismiss
     setupDialogSwipeGesture(elements.authElements.theDialog);
 
-    // Add event listener for ELO info button
-    const eloInfoButton = document.querySelector('[data-button-action="elo-info"]');
-    const eloInfoDialog = document.querySelector("[data-dialog-elo-info]");
-
-    if (eloInfoButton && eloInfoDialog) {
-      // Add swipe gesture to ELO info dialog
-      setupDialogSwipeGesture(eloInfoDialog);
-
-      // Add click handler for the info button
-      eloInfoButton.addEventListener("click", () => {
-        if (eloInfoDialog.showModal) {
-          eloInfoDialog.showModal();
-        } else {
-          eloInfoDialog.classList.add("open");
-        }
-      });
-
-      // Close button inside the ELO info dialog
-      const closeEloInfoButton = eloInfoDialog.querySelector('[data-button-action="close"]');
-      if (closeEloInfoButton) {
-        closeEloInfoButton.addEventListener("click", () => {
-          if (eloInfoDialog.close) {
-            eloInfoDialog.close();
-          } else {
-            eloInfoDialog.classList.remove("open");
-          }
-        });
-      }
-    }
+    // Inicjalizacja dialogów przez nowy moduł zarządzania dialogami
+    dialogManager.initializeAllDialogs(elements, setupDialogSwipeGesture);
 
     window.PepekAnimations = {
       getSortingConfig: () => {

@@ -664,13 +664,11 @@ export function updateTableRow(userId, user, elements) {
 }
 
 export function openEditDialog(userId = null, elements) {
-  const dialog = elements.authElements.theDialog;
-  if (!dialog || !elements.authElements.editWrapper || !elements.authElements.loginWrapper) {
+  const editDialog = elements.authElements.editDialog || elements.authElements.theDialog;
+  if (!editDialog) {
+    console.error("Nie znaleziono dialogu edycji");
     return;
   }
-
-  elements.authElements.editWrapper.style.display = "";
-  elements.authElements.loginWrapper.style.display = "none";
 
   if (userId) {
     const row = elements.tableBody.querySelector(`.table_row[data-user-id="${userId}"]`);
@@ -695,18 +693,26 @@ export function openEditDialog(userId = null, elements) {
     }
   }
 
-  const removeButton = dialog.querySelector('[data-button-action="remove-user"]');
+  const removeButton = editDialog.querySelector('[data-button-action="remove-user"]');
   if (removeButton) {
     if (userId) {
       removeButton.style.display = "";
-      setupRemoveButton(removeButton, userId, dialog, elements);
+      setupRemoveButton(removeButton, userId, editDialog, elements);
     } else {
       removeButton.style.display = "none";
     }
   }
 
+  // Ustaw ID edytowanego użytkownika
+  if (userId) {
+    editDialog.dataset.editingUserId = userId;
+  } else {
+    delete editDialog.dataset.editingUserId;
+  }
+
+  // Wypełnij formularz danymi użytkownika
   const populateInput = (selector, value, isPlaceholder = false) => {
-    const span = dialog.querySelector(selector);
+    const span = editDialog.querySelector(selector);
     if (span) {
       span.textContent = value;
 
@@ -733,8 +739,6 @@ export function openEditDialog(userId = null, elements) {
       return;
     }
 
-    dialog.dataset.editingUserId = userId;
-
     const nameValue = row.querySelector("[data-user-name]")?.dataset.value || "";
     populateInput(
       '[data-dialog-edit] [data-action-input="name"] [data-action-input-value]',
@@ -742,7 +746,7 @@ export function openEditDialog(userId = null, elements) {
     );
 
     const sexValue = row.querySelector("[data-user-sex]")?.dataset.value?.toUpperCase() || "M";
-    const sexToggle = dialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
+    const sexToggle = editDialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
     if (sexToggle) {
       const switcher = sexToggle.querySelector("[data-action-input-switcher]");
       const updateSwitcher = (val) => {
@@ -769,18 +773,16 @@ export function openEditDialog(userId = null, elements) {
       const oneRepValue = oneRepElement?.dataset.value || "0";
 
       const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] [data-action-input-value]`;
-      if (dialog.querySelector(maxRepsInputSelector)) {
+      if (editDialog.querySelector(maxRepsInputSelector)) {
         populateInput(maxRepsInputSelector, maxRepsValue);
       }
 
       const oneRepInputSelector = `[data-dialog-edit] [data-action-input-one-rep="${key}"] [data-action-input-value]`;
-      if (dialog.querySelector(oneRepInputSelector)) {
+      if (editDialog.querySelector(oneRepInputSelector)) {
         populateInput(oneRepInputSelector, oneRepValue);
       }
     });
   } else {
-    delete dialog.dataset.editingUserId;
-
     populateInput(
       '[data-dialog-edit] [data-action-input="name"] [data-action-input-value]',
       "",
@@ -794,16 +796,16 @@ export function openEditDialog(userId = null, elements) {
 
     Object.keys(CONFIG.exercises).forEach((key) => {
       const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] [data-action-input-value]`;
-      if (dialog.querySelector(maxRepsInputSelector)) {
+      if (editDialog.querySelector(maxRepsInputSelector)) {
         populateInput(maxRepsInputSelector, "", true);
       }
       const oneRepInputSelector = `[data-dialog-edit] [data-action-input-one-rep="${key}"] [data-action-input-value]`;
-      if (dialog.querySelector(oneRepInputSelector)) {
+      if (editDialog.querySelector(oneRepInputSelector)) {
         populateInput(oneRepInputSelector, "", true);
       }
     });
 
-    const sexToggle = dialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
+    const sexToggle = editDialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
     if (sexToggle) {
       const switcher = sexToggle.querySelector("[data-action-input-switcher]");
 
@@ -825,19 +827,19 @@ export function openEditDialog(userId = null, elements) {
     }
   }
 
-  dialog
+  editDialog
     .querySelectorAll("[data-dialog-edit] .is-invalid")
     .forEach((el) => el.classList.remove("is-invalid"));
 
   // Zamknij dialog przed ponownym otwarciem, aby uniknąć problemów z zablokowanym scrollem
-  if (dialog.open) {
-    dialog.close();
+  if (editDialog.open) {
+    editDialog.close();
     // Mały timeout, aby upewnić się, że dialog zdąży się zamknąć przed ponownym otwarciem
     setTimeout(() => {
-      dialog.showModal();
+      editDialog.showModal();
     }, 10);
   } else {
-    dialog.showModal();
+    editDialog.showModal();
   }
 
   auth.updateTableRowStyles(elements, userId);
