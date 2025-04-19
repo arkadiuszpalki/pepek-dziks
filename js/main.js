@@ -201,6 +201,46 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
 
+      // Kopiuj dane do komponentu [data-table-extras]
+      const tableExtras = row.querySelector("[data-table-extras]");
+      if (tableExtras) {
+        Object.entries(CONFIG.exercises).forEach(([key]) => {
+          const extraMaxRepsTarget = tableExtras.querySelector(
+            `[data-user-max="${key}"] [data-max-reps="${key}"]`
+          );
+          const extraOneRepTarget = tableExtras.querySelector(
+            `[data-user-max="${key}"] [data-one-rep="${key}"]`
+          );
+
+          if (key !== "press" && extraMaxRepsTarget) {
+            formatters.displayValue(
+              extraMaxRepsTarget,
+              `${key}-max`,
+              fields[`${key}-max`] !== null && fields[`${key}-max`] !== undefined
+                ? fields[`${key}-max`]
+                : 0
+            );
+          } else if (key === "press") {
+            const pressMaxWrap = tableExtras.querySelector(
+              `[data-user-max="${key}"] [data-max-reps-wrap]`
+            );
+            if (pressMaxWrap) {
+              pressMaxWrap.style.display = "none";
+            }
+          }
+
+          if (extraOneRepTarget) {
+            formatters.displayValue(
+              extraOneRepTarget,
+              `${key}-one`,
+              fields[`${key}-one`] !== null && fields[`${key}-one`] !== undefined
+                ? fields[`${key}-one`]
+                : 0
+            );
+          }
+        });
+      }
+
       const eloElement = row.querySelector("[data-elo]");
       if (eloElement) {
         eloElement.textContent = "0";

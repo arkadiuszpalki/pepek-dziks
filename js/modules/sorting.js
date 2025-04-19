@@ -146,8 +146,14 @@ export function updateCellOpacity(state, elements) {
         if (eloWrap) eloWrap.style.display = defaultDisplay;
         if (sumWrap) sumWrap.style.display = defaultDisplay;
       } else {
-        if (eloWrap) eloWrap.style.display = hiddenDisplay;
-        if (sumWrap) sumWrap.style.display = hiddenDisplay;
+        // Na urządzeniach mobilnych zawsze pokazujemy ELO
+        if (isMobile) {
+          if (eloWrap) eloWrap.style.display = defaultDisplay;
+          if (sumWrap) sumWrap.style.display = defaultDisplay;
+        } else {
+          if (eloWrap) eloWrap.style.display = hiddenDisplay;
+          if (sumWrap) sumWrap.style.display = hiddenDisplay;
+        }
       }
     });
   }
@@ -222,7 +228,36 @@ export function setupSorting(state, elements) {
       }
     });
 
-  const sortButtonsContainer = document.querySelector(".leaderboard_actions .actions-wrap");
+  // Obsługa przycisku toggle-view dla widoku mobilnego
+  const toggleViewButton = document.querySelector("button[data-button-action='toggle-view']");
+  if (toggleViewButton && window.innerWidth <= 991) {
+    // Sprawdź, czy istnieje zapisana preferencja użytkownika
+    const extrasVisible = localStorage.getItem("dziks_extras_visible") === "true";
+
+    // Ustaw początkowy stan widoczności extras
+    document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
+      extrasElement.style.display = extrasVisible ? "grid" : "none";
+    });
+
+    // Dodaj obsługę kliknięcia przycisku
+    toggleViewButton.addEventListener("click", () => {
+      // Odczytaj aktualny stan
+      const currentVisible = localStorage.getItem("dziks_extras_visible") === "true";
+      const newVisible = !currentVisible;
+
+      // Zapisz nowy stan
+      localStorage.setItem("dziks_extras_visible", newVisible.toString());
+
+      // Zastosuj nowy stan
+      document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
+        extrasElement.style.display = newVisible ? "grid" : "none";
+      });
+    });
+  }
+
+  const sortButtonsContainer = document.querySelector(
+    ".leaderboard_actions .actions-wrap:nth-child(2)"
+  );
 
   if (!sortButtonsContainer) {
     return;
@@ -230,36 +265,61 @@ export function setupSorting(state, elements) {
 
   // Funkcja do pokazania tylko kolumny ELO
   const showOnlyEloColumn = () => {
-    // Ukryj wszystkie kolumny danych
-    document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
-      column.setAttribute("data-mobile-solo", "");
-    });
+    // Na mobile nie ukrywamy kolumn, tylko ustawiamy opacity
+    if (window.innerWidth <= 991) {
+      // Upewnij się, że elementy ELO są zawsze widoczne
+      document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
+        column.style.opacity = "1";
+      });
+      // Przy ładowaniu strony wszystkie elementy w extras powinny mieć pełne opacity
+      document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
+        column.style.opacity = "1";
+      });
+    } else {
+      // Dla desktop zostawiamy stare zachowanie
+      document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
+        column.setAttribute("data-mobile-solo", "");
+      });
 
-    // Pokaż tylko kolumnę ELO
-    document.querySelectorAll('[data-table-header="elo"]').forEach((column) => {
-      column.setAttribute("data-mobile-solo", "show");
-    });
+      document.querySelectorAll('[data-table-header="elo"]').forEach((column) => {
+        column.setAttribute("data-mobile-solo", "show");
+      });
 
-    document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
-      column.setAttribute("data-mobile-solo", "show");
-    });
+      document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
+        column.setAttribute("data-mobile-solo", "show");
+      });
+    }
   };
 
   // Funkcja do pokazania tylko wybranej kolumny ćwiczenia
   const showOnlyExerciseColumn = (exerciseKey) => {
-    // Ukryj wszystkie kolumny danych
-    document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
-      column.setAttribute("data-mobile-solo", "");
-    });
+    if (window.innerWidth <= 991) {
+      // Na mobile ustawiamy opacity dla elementów w tabeli extras
+      // Upewnij się, że elementy ELO są zawsze widoczne
+      document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
+        column.style.opacity = "1";
+      });
+      document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
+        if (column.dataset.userMax === exerciseKey) {
+          column.style.opacity = "1";
+        } else {
+          column.style.opacity = "0.5";
+        }
+      });
+    } else {
+      // Dla desktop zostawiamy stare zachowanie
+      document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
+        column.setAttribute("data-mobile-solo", "");
+      });
 
-    // Pokaż tylko wybraną kolumnę ćwiczenia
-    document.querySelectorAll(`[data-table-header="${exerciseKey}"]`).forEach((column) => {
-      column.setAttribute("data-mobile-solo", "show");
-    });
+      document.querySelectorAll(`[data-table-header="${exerciseKey}"]`).forEach((column) => {
+        column.setAttribute("data-mobile-solo", "show");
+      });
 
-    document.querySelectorAll(`[data-user-max="${exerciseKey}"]`).forEach((column) => {
-      column.setAttribute("data-mobile-solo", "show");
-    });
+      document.querySelectorAll(`[data-user-max="${exerciseKey}"]`).forEach((column) => {
+        column.setAttribute("data-mobile-solo", "show");
+      });
+    }
   };
 
   // Zastosuj domyślny widok mobilny przy ładowaniu strony
