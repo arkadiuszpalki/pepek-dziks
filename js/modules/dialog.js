@@ -79,6 +79,17 @@ export function setupEloInfoDialog(setupDialogSwipeGesture) {
   }
 
   if (setupDialogSwipeGesture) {
+    if (!eloInfoDialog.querySelector("[data-dialog-drag]")) {
+      const dialogHeader =
+        eloInfoDialog.querySelector(".dialog-header") ||
+        eloInfoDialog.querySelector("header") ||
+        eloInfoDialog.firstElementChild;
+
+      if (dialogHeader) {
+        dialogHeader.setAttribute("data-dialog-drag", "");
+      }
+    }
+
     setupDialogSwipeGesture(eloInfoDialog);
   }
 
@@ -169,6 +180,17 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
   if (setupDialogSwipeGesture) {
     const allDialogs = document.querySelectorAll("dialog.dialog");
     allDialogs.forEach((dialog) => {
+      if (!dialog.querySelector("[data-dialog-drag]")) {
+        const dialogHeader =
+          dialog.querySelector(".dialog-header") ||
+          dialog.querySelector("header") ||
+          dialog.firstElementChild;
+
+        if (dialogHeader) {
+          dialogHeader.setAttribute("data-dialog-drag", "");
+        }
+      }
+
       setupDialogSwipeGesture(dialog);
 
       dialog.addEventListener("click", (e) => {

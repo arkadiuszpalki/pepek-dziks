@@ -323,10 +323,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // Setup dialog swipe to dismiss
-    setupDialogSwipeGesture(elements.authElements.theDialog);
+    setupDialogSwipeGesture(elements.authElements.theDialog, { offset: 30 });
 
     // Inicjalizacja dialogów przez nowy moduł zarządzania dialogami
-    dialogManager.initializeAllDialogs(elements, setupDialogSwipeGesture);
+    dialogManager.initializeAllDialogs(elements, (dialog) =>
+      setupDialogSwipeGesture(dialog, { offset: 30 })
+    );
 
     window.PepekAnimations = {
       getSortingConfig: () => {
@@ -430,8 +432,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // Function to handle swipe down to close dialog on mobile
-function setupDialogSwipeGesture(dialogElement) {
+function setupDialogSwipeGesture(dialogElement, options = {}) {
   if (!dialogElement) return;
+
+  // Default options
+  const config = {
+    offset: 20, // Default offset in pixels
+    ...options,
+  };
 
   let startY = 0;
   let currentY = 0;
@@ -439,16 +447,43 @@ function setupDialogSwipeGesture(dialogElement) {
   const DISMISS_THRESHOLD = 150; // Pixels needed to swipe down to dismiss
   const MOBILE_BREAKPOINT = 991; // Mobile breakpoint
 
+  // Find the drag handle element
+  const dragHandle = dialogElement.querySelector("[data-dialog-drag]");
+
+  if (!dragHandle) {
+    console.warn("No [data-dialog-drag] element found in dialog. Swipe to close will not work.");
+    return;
+  }
+
   function handleTouchStart(e) {
     if (window.innerWidth > MOBILE_BREAKPOINT) return;
 
+    // Check if the touch is within the drag handle element or within the offset area
     const touch = e.touches[0];
-    startY = touch.clientY;
-    currentY = startY;
-    isDragging = true;
+    const handleRect = dragHandle.getBoundingClientRect();
 
-    dialogElement.style.transition = "none";
-    dialogElement.style.userSelect = "none";
+    // Calculate extended area with offset
+    const extendedArea = {
+      top: handleRect.top - config.offset,
+      bottom: handleRect.bottom + config.offset,
+      left: handleRect.left - config.offset,
+      right: handleRect.right + config.offset,
+    };
+
+    // Only start dragging if touch is within the drag handle or offset area
+    if (
+      touch.clientX >= extendedArea.left &&
+      touch.clientX <= extendedArea.right &&
+      touch.clientY >= extendedArea.top &&
+      touch.clientY <= extendedArea.bottom
+    ) {
+      startY = touch.clientY;
+      currentY = startY;
+      isDragging = true;
+
+      dialogElement.style.transition = "none";
+      dialogElement.style.userSelect = "none";
+    }
   }
 
   function handleTouchMove(e) {
@@ -518,7 +553,7 @@ function setupDialogSwipeGesture(dialogElement) {
     isDragging = false;
   }
 
-  // Add event listeners
+  // Add event listeners to the dialog element
   dialogElement.addEventListener("touchstart", handleTouchStart, { passive: false });
   dialogElement.addEventListener("touchmove", handleTouchMove, { passive: false });
   dialogElement.addEventListener("touchend", handleTouchEnd);
