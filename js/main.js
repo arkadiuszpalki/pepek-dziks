@@ -479,7 +479,7 @@ function setupDialogSwipeGesture(dialogElement) {
 
     if (deltaY >= DISMISS_THRESHOLD) {
       // Swipe threshold reached, dismiss the dialog with custom animation
-      dialogElement.style.transform = `translateY(${window.innerHeight}px) scale(0.9)`;
+      dialogElement.style.transform = `translateY(${window.innerHeight}px) scale(0.8)`;
 
       // After animation completes, hide the dialog properly
       setTimeout(() => {
