@@ -11,7 +11,9 @@ export function calculateELO(elements) {
     return parseFloat(weightEl?.dataset.value || CONFIG.defaults.weight);
   });
 
-  const avgWeight = weights.length ? weights.reduce((a, b) => a + b, 0) / weights.length : CONFIG.defaults.weight;
+  const avgWeight = weights.length
+    ? weights.reduce((a, b) => a + b, 0) / weights.length
+    : CONFIG.defaults.weight;
 
   allRows.forEach((row) => {
     const weightEl = row.querySelector("[data-user-weight]");
@@ -32,13 +34,16 @@ export function calculateELO(elements) {
 
       totalOneRepSumKg += oneRepKg;
 
-      const genderMultiplier = gender === "k" && ["muscle-up", "pull-up", "dip", "chin-up"].includes(key) ? 1.4 : 1.0;
+      const genderMultiplier =
+        gender === "k" && ["muscle-up", "pull-up", "dip", "chin-up"].includes(key) ? 1.4 : 1.0;
 
       const weightFactor = weight > 0 ? Math.pow(weight / avgWeight, 0.33) : 1;
       const adjustedWeightFactor = weightFactor > 0 ? 1 / weightFactor : 1;
 
-      const maxRepsScore = reps * CONFIG.weights.maxReps * multiplier * adjustedWeightFactor * genderMultiplier;
-      const oneRepScore = oneRepKg * CONFIG.weights.oneRep * multiplier * adjustedWeightFactor * genderMultiplier;
+      const maxRepsScore =
+        reps * CONFIG.weights.maxReps * multiplier * adjustedWeightFactor * genderMultiplier;
+      const oneRepScore =
+        oneRepKg * CONFIG.weights.oneRep * multiplier * adjustedWeightFactor * genderMultiplier;
 
       const score = maxRepsScore + oneRepScore;
       exerciseScores[key] = Math.round(score * 10);
@@ -66,40 +71,47 @@ export function calculateELO(elements) {
 export function updateRankAndMedals(visibleRows) {
   if (visibleRows.length === 0) return;
 
-  visibleRows.sort((a, b) => {
+  // Dodaj medal do rzędu, jeśli jest to użytkownik z medalem w głównym sortowaniu
+  const addMedalIfNeeded = (row) => {
+    // Sprawdź, czy użytkownik ma tag medalu
+    const userId = row.dataset.userId;
+    const originalRank = row.dataset.originalRank;
+
+    if (originalRank === "1") {
+      return CONFIG.medals.gold;
+    } else if (originalRank === "2") {
+      return CONFIG.medals.silver;
+    } else if (originalRank === "3") {
+      return CONFIG.medals.bronze;
+    }
+
+    return null;
+  };
+
+  // Posortuj rzędy według ELO, aby znaleźć bazowe rankingi
+  const baseRows = [...visibleRows].sort((a, b) => {
     const eloA = parseInt(a.dataset.eloScore || 0);
     const eloB = parseInt(b.dataset.eloScore || 0);
     return eloB - eloA;
   });
 
-  let currentRank = 0;
-  let previousScore = -1;
-  let tieCounter = 1;
-  let bronzeAwarded = false;
-
-  visibleRows.forEach((row, index) => {
-    const currentScore = parseInt(row.dataset.eloScore || 0);
-
-    if (currentScore !== previousScore) {
-      currentRank = index + 1;
-      tieCounter = 1;
-    } else {
-      tieCounter++;
+  // Przypisz oryginalny ranking przy pierwszym uruchomieniu
+  baseRows.forEach((row, index) => {
+    if (!row.dataset.originalRank) {
+      row.dataset.originalRank = (index + 1).toString();
     }
+  });
 
+  // Aktualizuj ranking na podstawie aktualnej kolejności w tabeli
+  visibleRows.forEach((row, index) => {
+    const currentRank = index + 1;
     const rankCell = row.querySelector("[data-user-rank]");
+
     if (rankCell) {
       rankCell.innerHTML = "";
 
-      let medalColor = null;
-      if (currentRank === 1) {
-        medalColor = CONFIG.medals.gold;
-      } else if (currentRank === 2) {
-        medalColor = CONFIG.medals.silver;
-      } else if (currentRank > 2 && !bronzeAwarded) {
-        medalColor = CONFIG.medals.bronze;
-        bronzeAwarded = true;
-      }
+      // Sprawdź czy ten rząd powinien mieć medal
+      const medalColor = addMedalIfNeeded(row);
 
       if (medalColor) {
         const medalDiv = document.createElement("div");
@@ -115,7 +127,5 @@ export function updateRankAndMedals(visibleRows) {
         rankCell.textContent = currentRank.toString();
       }
     }
-
-    previousScore = currentScore;
   });
 }

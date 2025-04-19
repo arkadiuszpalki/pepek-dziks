@@ -159,6 +159,21 @@ export function sortRows(state, elements, exercise, type, direction = "desc") {
   const rows = Array.from(elements.tableBody.querySelectorAll(".table_row.is-user"));
   if (!rows.length) return;
 
+  // Upewnij się, że wszystkie wiersze mają ustawiony originalRank, jeśli nie był ustawiony wcześniej
+  if (exercise === "elo" && type === "score") {
+    rows
+      .sort((a, b) => {
+        const eloA = parseInt(a.dataset.eloScore || 0);
+        const eloB = parseInt(b.dataset.eloScore || 0);
+        return direction === "asc" ? eloA - eloB : eloB - eloA;
+      })
+      .forEach((row, index) => {
+        if (!row.dataset.originalRank) {
+          row.dataset.originalRank = (index + 1).toString();
+        }
+      });
+  }
+
   const sortedRows = sortDataForRows(rows, exercise, type, direction);
 
   // Najpierw aktualizujemy opacity dla wszystkich elementów
