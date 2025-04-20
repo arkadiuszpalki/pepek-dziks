@@ -393,9 +393,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupDialogSwipeGesture(elements.authElements.theDialog, { offset: 30 });
 
     // Inicjalizacja dialogów przez nowy moduł zarządzania dialogami
-    dialogManager.initializeAllDialogs(elements, (dialog) =>
-      setupDialogSwipeGesture(dialog, { offset: 30 })
-    );
+    dialogManager.initializeAllDialogs(elements, (dialog) => {
+      setupDialogSwipeGesture(dialog, { offset: 30 });
+      disableAutofocusOnMobile(dialog);
+    });
+
+    // Funkcja wyłączająca autofocus na urządzeniach mobilnych
+    function disableAutofocusOnMobile(dialogElement) {
+      if (!dialogElement) return;
+
+      // Sprawdzenie czy urządzenie jest mobilne (zgodnie z breakpointem używanym w kodzie)
+      const isMobile = window.innerWidth <= 991;
+
+      if (isMobile) {
+        // Znajduje wszystkie pola z atrybutem autofocus
+        const autofocusFields = dialogElement.querySelectorAll("[autofocus]");
+
+        // Usuwa atrybut autofocus
+        autofocusFields.forEach((field) => {
+          field.removeAttribute("autofocus");
+        });
+
+        // Dodatkowe zabezpieczenie - zapobiega focusowi na polach input po otwarciu dialogu
+        dialogElement.addEventListener("open", () => {
+          setTimeout(() => {
+            // Blur aktywnego elementu
+            if (document.activeElement && document.activeElement.tagName === "INPUT") {
+              document.activeElement.blur();
+            }
+          }, 50);
+        });
+      }
+    }
 
     window.PepekAnimations = {
       getSortingConfig: () => {
