@@ -84,7 +84,13 @@ export function setupDialogInteractions(elements) {
 
       wrapper.addEventListener("click", (event) => {
         if (event.target !== valueSpan) {
-          // valueSpan.focus(); // Autofocus wyłączony globalnie
+          // Sprawdź czy element ma atrybut data-no-auto-focus lub czy jesteśmy na urządzeniu mobilnym
+          const isMobile = window.innerWidth <= 991;
+          const shouldAvoidFocus = valueSpan.hasAttribute("data-no-auto-focus") || isMobile;
+
+          if (!shouldAvoidFocus) {
+            valueSpan.focus();
+          }
         }
       });
 
@@ -838,6 +844,25 @@ export function openEditDialog(userId = null, elements) {
     }, 10);
   } else {
     editDialog.showModal();
+  }
+
+  // Wyłącz autofocus na urządzeniach mobilnych
+  const isMobile = window.innerWidth <= 991;
+  if (isMobile) {
+    // Opóźnij wykonanie, aby dać czas na otwarcie dialogu
+    setTimeout(() => {
+      // Usuń focus z aktywnego elementu
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+
+      // Zapobiegaj automatycznemu focusowi na contenteditable spans
+      const focusableSpans = editDialog.querySelectorAll('[contenteditable="true"]');
+      focusableSpans.forEach((span) => {
+        // Dodaj atrybut aby oznaczyć, że nie powinno być automatycznego focusu
+        span.setAttribute("data-no-auto-focus", "true");
+      });
+    }, 50);
   }
 
   auth.updateTableRowStyles(elements, userId);
