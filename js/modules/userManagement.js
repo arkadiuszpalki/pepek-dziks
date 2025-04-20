@@ -4,6 +4,38 @@ import * as api from "./api.js";
 import * as auth from "./auth.js";
 import { displayValue } from "../utils/formatters.js";
 
+// Funkcja dodająca style CSS dla walidacji
+function addValidationStyles() {
+  // Sprawdzamy czy style już istnieją
+  if (document.getElementById("validation-styles")) {
+    return;
+  }
+
+  // Tworzenie elementu style
+  const styleElement = document.createElement("style");
+  styleElement.id = "validation-styles";
+  styleElement.textContent = `
+    .is-invalid {
+      border: 2px solid #ff0000 !important;
+    }
+    
+    /* Styl dla labela zawierającego input */
+    label.is-invalid,
+    label.input.is-invalid {
+      border: 2px solid #ff0000 !important;
+    }
+    
+    /* Gdy label jest nieprawidłowy, usuwamy obramowanie z inputa wewnątrz niego */
+    label.is-invalid input,
+    label.input.is-invalid input {
+      border-color: transparent !important;
+    }
+  `;
+
+  // Dodanie stylów do nagłówka strony
+  document.head.appendChild(styleElement);
+}
+
 // Funkcja do blokowania przewijania strony, gdy dialog jest otwarty
 function toggleBodyScroll(disable) {
   if (disable) {
@@ -31,19 +63,148 @@ function toggleBodyScroll(disable) {
   }
 }
 
+// Funkcja dostosowująca szerokość inputów do ich zawartości
+function setupAutoWidthInputs(dialogElement) {
+  if (!dialogElement) return;
+
+  // Tworzenie ukrytego elementu do pomiaru tekstu
+  let measureElement = document.querySelector(".js-measure-text");
+  if (!measureElement) {
+    measureElement = document.createElement("span");
+    measureElement.className = "js-measure-text";
+    measureElement.style.position = "absolute";
+    measureElement.style.visibility = "hidden";
+    measureElement.style.whiteSpace = "pre";
+    measureElement.style.fontSize = "16px"; // Domyślny rozmiar fontu
+    measureElement.style.fontFamily = "inherit";
+    document.body.appendChild(measureElement);
+  }
+
+  // Funkcja do mierzenia i ustawiania szerokości
+  const adjustInputWidth = (input) => {
+    // Użyj wartości inputa lub placeholdera jeśli input jest pusty
+    const textToMeasure = input.value || input.placeholder || "";
+
+    // Uzyskaj styl fontu inputa
+    const inputStyle = window.getComputedStyle(input);
+    measureElement.style.fontSize = inputStyle.fontSize;
+    measureElement.style.fontFamily = inputStyle.fontFamily;
+    measureElement.style.fontWeight = inputStyle.fontWeight;
+
+    // Zmierz tekst
+    measureElement.textContent = textToMeasure;
+
+    // Dodaj padding dla lepszego wyglądu
+    const padding = 20; // Dodatkowe pixele dla wygody
+    const minWidth = 30; // Minimalna szerokość w px
+    const width = Math.max(measureElement.offsetWidth + padding, minWidth);
+
+    // Ustaw szerokość inputa
+    input.style.width = `${width}px`;
+  };
+
+  // Znajdź wszystkie inputy w dialogu
+  const inputs = dialogElement.querySelectorAll("input");
+
+  // Dla każdego inputa ustaw początkową szerokość i dodaj event listenery
+  inputs.forEach((input) => {
+    // Pomiń inputy, które nie powinny mieć dynamicznej szerokości
+    if (input.parentElement.matches('[data-action-input="name"]')) {
+      return; // Nie zmieniaj szerokości dla pola imienia
+    }
+
+    // Początkowe ustawienie szerokości
+    adjustInputWidth(input);
+
+    // Aktualizuj szerokość przy wpisywaniu
+    input.addEventListener("input", () => {
+      adjustInputWidth(input);
+    });
+
+    // Aktualizuj szerokość przy focusie
+    input.addEventListener("focus", () => {
+      adjustInputWidth(input);
+    });
+
+    // Aktualizuj szerokość przy utracie focusa
+    input.addEventListener("blur", () => {
+      adjustInputWidth(input);
+    });
+
+    // Obserwuj zmiany w placeholderze
+    const observer = new MutationObserver(() => {
+      adjustInputWidth(input);
+    });
+
+    observer.observe(input, { attributes: true, attributeFilter: ["placeholder"] });
+  });
+}
+
 export function setupDialogInteractions(elements) {
   const dialog = elements.authElements.theDialog;
   if (!dialog) {
     return;
   }
 
+  // Dodaj style walidacji
+  addValidationStyles();
+
+  // Ustawienie walidacji w czasie rzeczywistym
+  setupLiveValidation(dialog);
+
+  // Zapisz oryginalne placeholdery wszystkich inputów
+  const allInputs = dialog.querySelectorAll('input[type="text"], input:not([type])');
+  allInputs.forEach((input) => {
+    if (input.placeholder) {
+      input.setAttribute("data-original-placeholder", input.placeholder);
+    }
+  });
+
+  // Funkcja do resetowania i ponownej inicjalizacji przycisków w dialogu
+  const resetDialogButtons = () => {
+    const cancelButton = dialog.querySelector('[data-dialog-edit] [data-button-action="cancel"]');
+    const confirmButton = dialog.querySelector('[data-dialog-edit] [data-button-action="confirm"]');
+
+    // Usuń istniejące listenery z przycisków
+    if (cancelButton) {
+      const newCancelButton = cancelButton.cloneNode(true);
+      cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
+
+      // Dodaj nowy listener do przycisku anulowania
+      newCancelButton.addEventListener("click", () => {
+        dialog.close();
+        delete dialog.dataset.editingUserId;
+        auth.updateTableRowStyles(elements);
+      });
+    }
+
+    if (confirmButton) {
+      setupHoldToSaveButton(confirmButton, dialog, elements);
+    }
+  };
+
   // Blokuj scroll strony, gdy dialog jest otwarty
   dialog.addEventListener("close", () => {
     toggleBodyScroll(false);
+
+    // Po zamknięciu dialogu, resetuj wszystkie inputy
+    setTimeout(() => {
+      // Resetuj pola wejściowe
+      const allInputs = dialog.querySelectorAll('input[type="text"], input:not([type])');
+      allInputs.forEach((input) => {
+        input.value = "";
+        // Przywróć oryginalny placeholder, jeśli został zapisany
+        if (input.hasAttribute("data-original-placeholder")) {
+          input.placeholder = input.getAttribute("data-original-placeholder");
+        }
+      });
+    }, 100);
   });
 
   dialog.addEventListener("showModal", () => {
     toggleBodyScroll(true);
+    // Przy każdym otwarciu dialogu resetuj i ponownie inicjalizuj przyciski
+    resetDialogButtons();
   });
 
   // Alternatywne nasłuchiwanie otwarcia dialogu
@@ -51,6 +212,8 @@ export function setupDialogInteractions(elements) {
   dialog.showModal = function () {
     originalShowModal.apply(this, arguments);
     toggleBodyScroll(true);
+    // Przy każdym otwarciu dialogu resetuj i ponownie inicjalizuj przyciski
+    resetDialogButtons();
   };
 
   dialog.addEventListener("click", (event) => {
@@ -68,124 +231,42 @@ export function setupDialogInteractions(elements) {
   inputWrappers.forEach((wrapper) => {
     if (wrapper.dataset.actionInput === "sex") return;
 
-    const valueSpan = wrapper.querySelector("[data-action-input-value]");
+    const input = wrapper.querySelector("input");
 
-    if (valueSpan) {
-      valueSpan.setAttribute("contenteditable", "true");
-
-      const originalPlaceholder = valueSpan.textContent.trim();
-      valueSpan.dataset.originalPlaceholder = originalPlaceholder;
-
-      if (originalPlaceholder !== "") {
-        valueSpan.dataset.placeholderCleared = "false";
-      } else {
-        valueSpan.dataset.placeholderCleared = "true";
-      }
-
-      wrapper.addEventListener("click", (event) => {
-        if (event.target !== valueSpan) {
-          // Sprawdź czy element ma atrybut data-no-auto-focus lub czy jesteśmy na urządzeniu mobilnym
-          const isMobile = window.innerWidth <= 991;
-          const shouldAvoidFocus = valueSpan.hasAttribute("data-no-auto-focus") || isMobile;
-
-          if (!shouldAvoidFocus) {
-            valueSpan.focus();
-          }
-        }
-      });
-
-      valueSpan.addEventListener("focus", () => {
-        if (valueSpan.dataset.placeholderCleared === "false") {
-          valueSpan.textContent = "";
-          valueSpan.dataset.placeholderCleared = "true";
-        } else {
-          requestAnimationFrame(() => {
-            try {
-              const selection = window.getSelection();
-              const range = document.createRange();
-
-              if (valueSpan.firstChild) {
-                range.setStart(valueSpan.firstChild, valueSpan.textContent.length);
-                range.collapse(true);
-              } else {
-                range.selectNodeContents(valueSpan);
-                range.collapse(false);
-              }
-
-              selection.removeAllRanges();
-              selection.addRange(range);
-            } catch (e) {
-              console.error("Error setting cursor position on focus:", e);
-            }
-          });
-        }
-      });
-
-      valueSpan.addEventListener("blur", () => {
-        if (valueSpan.textContent.trim() === "") {
-          valueSpan.textContent = valueSpan.dataset.originalPlaceholder;
-          valueSpan.dataset.placeholderCleared = "false";
-        }
-      });
-
-      valueSpan.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-        }
-      });
-
+    if (input) {
+      // Dla inputów typu number na urządzeniach mobilnych
       const isNumericInput =
         wrapper.hasAttribute("data-action-input-max-reps") ||
         wrapper.hasAttribute("data-action-input-one-rep") ||
         wrapper.dataset.actionInput === "weight";
 
       if (isNumericInput) {
-        valueSpan.setAttribute("inputmode", "numeric");
-        valueSpan.setAttribute("pattern", "[0-9]*");
+        input.setAttribute("inputmode", "numeric");
+        input.setAttribute("pattern", "[0-9]*");
 
-        valueSpan.addEventListener("input", (event) => {
-          const originalText = event.target.textContent;
-          const digitsOnly = originalText.replace(/\D/g, "");
+        // Sprawdź, czy jest na urządzeniu mobilnym - wyłącz autofocus
+        if (window.innerWidth <= 991) {
+          // Zapobiegaj autofocusowi
+          input.addEventListener(
+            "focus",
+            function (e) {
+              setTimeout(() => {
+                if (input.hasAttribute("data-prevent-focus")) {
+                  input.blur();
+                }
+              }, 10);
+            },
+            { once: true }
+          );
+        }
 
-          if (originalText !== digitsOnly) {
-            const selection = window.getSelection();
-            const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-            const currentOffset = range ? range.startOffset : 0;
-            const textNode =
-              range && range.startContainer.nodeType === Node.TEXT_NODE
-                ? range.startContainer
-                : event.target.firstChild;
+        // Filtruj znaki niebędące cyframi
+        input.addEventListener("input", (event) => {
+          const value = event.target.value;
+          const digitsOnly = value.replace(/\D/g, "");
 
-            let nonDigitsBeforeCursor = 0;
-            if (textNode && currentOffset > 0) {
-              const textBeforeCursor = textNode.textContent.substring(0, currentOffset);
-              nonDigitsBeforeCursor = (textBeforeCursor.match(/\D/g) || []).length;
-            }
-
-            event.target.textContent = digitsOnly;
-
-            try {
-              const newTextNode = event.target.firstChild;
-              if (newTextNode) {
-                const newOffset = Math.max(
-                  0,
-                  Math.min(currentOffset - nonDigitsBeforeCursor, digitsOnly.length)
-                );
-                const newRange = document.createRange();
-                newRange.setStart(newTextNode, newOffset);
-                newRange.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
-              }
-            } catch (e) {
-              console.error("Error restoring cursor position after filtering:", e);
-
-              const rangeEnd = document.createRange();
-              rangeEnd.selectNodeContents(event.target);
-              rangeEnd.collapse(false);
-              selection.removeAllRanges();
-              selection.addRange(rangeEnd);
-            }
+          if (value !== digitsOnly) {
+            event.target.value = digitsOnly;
           }
         });
       }
@@ -213,86 +294,116 @@ export function setupDialogInteractions(elements) {
     updateSwitcher(initialSex);
   }
 
-  const cancelButton = dialog.querySelector('[data-dialog-edit] [data-button-action="cancel"]');
-  const confirmButton = dialog.querySelector('[data-dialog-edit] [data-button-action="confirm"]');
-
-  if (cancelButton) {
-    cancelButton.addEventListener("click", () => {
-      dialog.close();
-      delete dialog.dataset.editingUserId;
-      auth.updateTableRowStyles(elements);
-    });
-  }
-
-  if (confirmButton) {
-    setupHoldToSaveButton(confirmButton, dialog, elements);
-  }
+  // Na końcu funkcji resetujemy przyciski, aby były gotowe do pierwszego użycia
+  resetDialogButtons();
 }
 
 export function gatherAndSubmitUserData(dialog, elements) {
   const userData = {};
-  let isValid = true;
 
-  const nameSpan = dialog.querySelector('[data-action-input="name"] [data-action-input-value]');
-  if (nameSpan && nameSpan.dataset.placeholderCleared === "true") {
-    userData.name = nameSpan.textContent.trim();
-  } else {
-    userData.name = "";
+  // Sprawdź, czy możemy użyć naszego mechanizmu walidacji
+  if (dialog.validateAllFields) {
+    const isValid = dialog.validateAllFields();
+    if (!isValid) {
+      console.error("Form validation failed.");
+      return;
+    }
   }
+
+  // Walidacja pola imienia (name)
+  const nameInput = dialog.querySelector('[data-dialog-edit] [data-action-input="name"] input');
+  if (nameInput) {
+    userData.name = nameInput.value.trim();
+  } else {
+    // Próbujemy alternatywnego selektora (działający w oryginalnym kodzie)
+    const nameSpan = dialog.querySelector('[data-action-input="name"] [data-action-input-value]');
+    if (nameSpan) {
+      userData.name = nameSpan.value ? nameSpan.value.trim() : nameSpan.textContent.trim() || "";
+    } else {
+      userData.name = "";
+    }
+  }
+
   if (!userData.name) {
     console.error("Name is required.");
-
-    if (nameSpan && nameSpan.parentElement) nameSpan.parentElement.classList.add("is-invalid");
-    isValid = false;
-  } else {
-    if (nameSpan && nameSpan.parentElement) nameSpan.parentElement.classList.remove("is-invalid");
+    return;
   }
 
   const sexToggle = dialog.querySelector('[data-action-input="sex"]');
   userData.plec = sexToggle ? sexToggle.dataset.selectedValue : "M";
 
-  const weightSpan = dialog.querySelector('[data-action-input="weight"] [data-action-input-value]');
+  // Walidacja pola wagi (weight)
+  const weightInput = dialog.querySelector('[data-dialog-edit] [data-action-input="weight"] input');
   let weightValue = NaN;
-  if (weightSpan && weightSpan.dataset.placeholderCleared === "true") {
-    weightValue = parseInt(weightSpan.textContent.trim(), 10);
+
+  if (weightInput) {
+    weightValue = parseInt(weightInput.value.trim(), 10);
+  } else {
+    const weightSpan = dialog.querySelector(
+      '[data-action-input="weight"] [data-action-input-value]'
+    );
+    if (weightSpan) {
+      weightValue = parseInt(weightSpan.value || weightSpan.textContent.trim(), 10);
+    }
   }
-  userData.waga = !isNaN(weightValue) && weightValue > 0 ? weightValue : null;
+
+  // Sprawdzamy czy waga jest poprawna (nie jest NaN i jest większa od 0)
+  if (isNaN(weightValue) || weightValue <= 0) {
+    console.error("Weight is required and must be greater than 0.");
+    return;
+  }
+
+  userData.waga = weightValue;
 
   Object.keys(CONFIG.exercises).forEach((key) => {
-    const maxRepsSpan = dialog.querySelector(
-      `[data-action-input-max-reps="${key}"] [data-action-input-value]`
+    // Poprawa: najpierw próbujemy selektora z input
+    const maxRepsInput = dialog.querySelector(
+      `[data-dialog-edit] [data-action-input-max-reps="${key}"] input`
     );
-    const oneRepSpan = dialog.querySelector(
-      `[data-action-input-one-rep="${key}"] [data-action-input-value]`
+    const oneRepInput = dialog.querySelector(
+      `[data-dialog-edit] [data-action-input-one-rep="${key}"] input`
     );
+
     let maxRepsValue = 0;
     let oneRepValue = 0;
 
-    if (maxRepsSpan && maxRepsSpan.dataset.placeholderCleared === "true") {
-      const parsedMax = parseInt(maxRepsSpan.textContent.trim(), 10);
+    // Pobieramy wartość dla max-reps
+    if (maxRepsInput) {
+      const parsedMax = parseInt(maxRepsInput.value.trim(), 10);
       if (!isNaN(parsedMax) && parsedMax >= 0) maxRepsValue = parsedMax;
-    }
-    if (oneRepSpan && oneRepSpan.dataset.placeholderCleared === "true") {
-      const parsedOne = parseInt(oneRepSpan.textContent.trim(), 10);
-      if (!isNaN(parsedOne) && parsedOne >= 0) oneRepValue = parsedOne;
+    } else {
+      const maxRepsSpan = dialog.querySelector(
+        `[data-action-input-max-reps="${key}"] [data-action-input-value]`
+      );
+      if (maxRepsSpan) {
+        const spanValue = maxRepsSpan.value || maxRepsSpan.textContent.trim();
+        const parsedMax = parseInt(spanValue, 10);
+        if (!isNaN(parsedMax) && parsedMax >= 0) maxRepsValue = parsedMax;
+      }
     }
 
-    if (maxRepsSpan) {
-      userData[`${key.replace("-", "_")}_max_reps`] = maxRepsValue;
+    // Pobieramy wartość dla one-rep
+    if (oneRepInput) {
+      const parsedOne = parseInt(oneRepInput.value.trim(), 10);
+      if (!isNaN(parsedOne) && parsedOne >= 0) oneRepValue = parsedOne;
+    } else {
+      const oneRepSpan = dialog.querySelector(
+        `[data-action-input-one-rep="${key}"] [data-action-input-value]`
+      );
+      if (oneRepSpan) {
+        const spanValue = oneRepSpan.value || oneRepSpan.textContent.trim();
+        const parsedOne = parseInt(spanValue, 10);
+        if (!isNaN(parsedOne) && parsedOne >= 0) oneRepValue = parsedOne;
+      }
     }
-    if (oneRepSpan) {
-      userData[`${key.replace("-", "_")}_one_rep`] = oneRepValue;
-    }
+
+    userData[`${key.replace("-", "_")}_max_reps`] = maxRepsValue;
+    userData[`${key.replace("-", "_")}_one_rep`] = oneRepValue;
 
     if (key === "press") {
       delete userData.press_max_reps;
     }
   });
-
-  if (!isValid) {
-    console.error("Form validation failed.");
-    return;
-  }
 
   const userId = dialog.dataset.editingUserId;
   const currentUserId = auth.getCurrentUserId();
@@ -674,6 +785,12 @@ export function openEditDialog(userId = null, elements) {
     return;
   }
 
+  // Dodaj style walidacji
+  addValidationStyles();
+
+  // Ustawienie walidacji w czasie rzeczywistym
+  const validator = setupLiveValidation(editDialog);
+
   if (userId) {
     const row = elements.tableBody.querySelector(`.table_row[data-user-id="${userId}"]`);
     if (!row) {
@@ -697,6 +814,11 @@ export function openEditDialog(userId = null, elements) {
     }
   }
 
+  // Resetuj stan dialogu przed otwarciem
+  editDialog.querySelectorAll(".is-invalid").forEach((el) => {
+    el.classList.remove("is-invalid");
+  });
+
   const removeButton = editDialog.querySelector('[data-button-action="remove-user"]');
   if (removeButton) {
     if (userId) {
@@ -716,27 +838,29 @@ export function openEditDialog(userId = null, elements) {
 
   // Wypełnij formularz danymi użytkownika
   const populateInput = (selector, value, isPlaceholder = false) => {
-    const span = editDialog.querySelector(selector);
-    if (span) {
-      span.textContent = value;
-
-      const originalPlaceholder = span.dataset.originalPlaceholder || "";
-
-      if (isPlaceholder || value === "" || (typeof value === "string" && value === "0")) {
-        span.dataset.placeholderCleared = "false";
-
-        if (value === "" || (typeof value === "string" && value === "0")) {
-          span.textContent = originalPlaceholder;
-        } else {
-          span.textContent = value;
-        }
+    const inputElement = editDialog.querySelector(selector);
+    if (inputElement) {
+      // Tryb dodawania nowego użytkownika - użyj oryginalnego placeholdera
+      if (userId === null) {
+        // Przywróć oryginalny placeholder z HTML
+        // Ustaw pustą wartość
+        inputElement.value = "";
       } else {
-        span.dataset.placeholderCleared = "true";
-        span.textContent = value;
+        // Tryb edycji - ustaw placeholder na aktualną wartość
+        inputElement.placeholder = value || inputElement.getAttribute("placeholder") || "";
+
+        // Sprawdź czy to placeholder
+        if (isPlaceholder || value === "" || (typeof value === "string" && value === "0")) {
+          // Ustaw pustą wartość, ale zachowaj placeholder z aktualną wartością
+          inputElement.value = "";
+        } else {
+          inputElement.value = value;
+        }
       }
     }
   };
 
+  // Zaktualizuj wartości w formularzu tylko jeśli edytujemy istniejącego użytkownika
   if (userId) {
     const row = elements.tableBody.querySelector(`.table_row[data-user-id="${userId}"]`);
     if (!row) {
@@ -744,10 +868,7 @@ export function openEditDialog(userId = null, elements) {
     }
 
     const nameValue = row.querySelector("[data-user-name]")?.dataset.value || "";
-    populateInput(
-      '[data-dialog-edit] [data-action-input="name"] [data-action-input-value]',
-      nameValue
-    );
+    populateInput('[data-dialog-edit] [data-action-input="name"] input', nameValue);
 
     const sexValue = row.querySelector("[data-user-sex]")?.dataset.value?.toUpperCase() || "M";
     const sexToggle = editDialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
@@ -764,7 +885,7 @@ export function openEditDialog(userId = null, elements) {
 
     const weightValue = row.querySelector("[data-user-weight]")?.dataset.value || "";
     populateInput(
-      '[data-dialog-edit] [data-action-input="weight"] [data-action-input-value]',
+      '[data-dialog-edit] [data-action-input="weight"] input',
       weightValue,
       weightValue === "" || weightValue === (CONFIG.defaults.weight || 70).toString()
     );
@@ -776,34 +897,39 @@ export function openEditDialog(userId = null, elements) {
       const maxRepsValue = maxRepsElement?.dataset.value || "0";
       const oneRepValue = oneRepElement?.dataset.value || "0";
 
-      const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] [data-action-input-value]`;
+      const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] input`;
       if (editDialog.querySelector(maxRepsInputSelector)) {
         populateInput(maxRepsInputSelector, maxRepsValue);
       }
 
-      const oneRepInputSelector = `[data-dialog-edit] [data-action-input-one-rep="${key}"] [data-action-input-value]`;
+      const oneRepInputSelector = `[data-dialog-edit] [data-action-input-one-rep="${key}"] input`;
       if (editDialog.querySelector(oneRepInputSelector)) {
         populateInput(oneRepInputSelector, oneRepValue);
       }
     });
   } else {
-    populateInput(
-      '[data-dialog-edit] [data-action-input="name"] [data-action-input-value]',
-      "",
-      true
-    );
-    populateInput(
-      '[data-dialog-edit] [data-action-input="weight"] [data-action-input-value]',
-      "",
-      true
-    );
+    // Resetuj dialog do domyślnego stanu dla dodawania nowego użytkownika
+
+    // Najpierw resetuj wszystkie inputy do stanu domyślnego z HTML
+    const allInputs = editDialog.querySelectorAll('input[type="text"], input:not([type])');
+    allInputs.forEach((input) => {
+      input.value = "";
+      // Upewnij się, że używamy oryginalnego placeholdera z HTML
+      if (input.hasAttribute("data-original-placeholder")) {
+        input.placeholder = input.getAttribute("data-original-placeholder");
+      }
+    });
+
+    // Teraz wypełnij formularz pustymi wartościami
+    populateInput('[data-dialog-edit] [data-action-input="name"] input', "", true);
+    populateInput('[data-dialog-edit] [data-action-input="weight"] input', "", true);
 
     Object.keys(CONFIG.exercises).forEach((key) => {
-      const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] [data-action-input-value]`;
+      const maxRepsInputSelector = `[data-dialog-edit] [data-action-input-max-reps="${key}"] input`;
       if (editDialog.querySelector(maxRepsInputSelector)) {
         populateInput(maxRepsInputSelector, "", true);
       }
-      const oneRepInputSelector = `[data-dialog-edit] [data-action-input-one-rep="${key}"] [data-action-input-value]`;
+      const oneRepInputSelector = `[data-dialog-edit] [data-action-input-one-rep="${key}"] input`;
       if (editDialog.querySelector(oneRepInputSelector)) {
         populateInput(oneRepInputSelector, "", true);
       }
@@ -820,20 +946,22 @@ export function openEditDialog(userId = null, elements) {
         sexToggle.dataset.selectedValue = selectedValue;
       };
 
-      sexToggle.addEventListener("click", () => {
-        const currentValue = sexToggle.dataset.selectedValue || "M";
+      // Usuń istniejące listenery przed dodaniem nowego
+      const newSexToggle = sexToggle.cloneNode(true);
+      if (sexToggle.parentNode) {
+        sexToggle.parentNode.replaceChild(newSexToggle, sexToggle);
+      }
+
+      newSexToggle.addEventListener("click", () => {
+        const currentValue = newSexToggle.dataset.selectedValue || "M";
         const newValue = currentValue === "M" ? "K" : "M";
         updateSwitcher(newValue);
       });
 
-      const initialSex = sexToggle.dataset.selectedValue || "M";
+      const initialSex = newSexToggle.dataset.selectedValue || "M";
       updateSwitcher(initialSex);
     }
   }
-
-  editDialog
-    .querySelectorAll("[data-dialog-edit] .is-invalid")
-    .forEach((el) => el.classList.remove("is-invalid"));
 
   // Zamknij dialog przed ponownym otwarciem, aby uniknąć problemów z zablokowanym scrollem
   if (editDialog.open) {
@@ -841,9 +969,21 @@ export function openEditDialog(userId = null, elements) {
     // Mały timeout, aby upewnić się, że dialog zdąży się zamknąć przed ponownym otwarciem
     setTimeout(() => {
       editDialog.showModal();
-    }, 10);
+      setupAutoWidthInputs(editDialog);
+
+      // Wykonaj walidację po wypełnieniu
+      if (validator) {
+        setTimeout(() => validator.validateAll(), 100);
+      }
+    }, 50); // Zwiększamy timeout dla większej pewności
   } else {
     editDialog.showModal();
+    setupAutoWidthInputs(editDialog);
+
+    // Wykonaj walidację po wypełnieniu
+    if (validator) {
+      setTimeout(() => validator.validateAll(), 100);
+    }
   }
 
   // Wyłącz autofocus na urządzeniach mobilnych
@@ -851,16 +991,23 @@ export function openEditDialog(userId = null, elements) {
   if (isMobile) {
     // Opóźnij wykonanie, aby dać czas na otwarcie dialogu
     setTimeout(() => {
+      // Znajdź wszystkie inputy w dialogu
+      const inputs = editDialog.querySelectorAll("input");
+
       // Usuń focus z aktywnego elementu
-      if (document.activeElement) {
+      if (document.activeElement && document.activeElement.tagName === "INPUT") {
         document.activeElement.blur();
       }
 
-      // Zapobiegaj automatycznemu focusowi na contenteditable spans
-      const focusableSpans = editDialog.querySelectorAll('[contenteditable="true"]');
-      focusableSpans.forEach((span) => {
-        // Dodaj atrybut aby oznaczyć, że nie powinno być automatycznego focusu
-        span.setAttribute("data-no-auto-focus", "true");
+      // Dodaj atrybut do inputów, aby zapobiec autofocusowi
+      inputs.forEach((input) => {
+        // Ustaw attribut tabindex na -1, aby zapobiec automatycznemu focusowi
+        input.setAttribute("tabindex", "-1");
+
+        // Po pewnym czasie przywróć normalny tabindex
+        setTimeout(() => {
+          input.setAttribute("tabindex", "0");
+        }, 500);
       });
     }, 50);
   }
@@ -962,6 +1109,15 @@ export function setupAddUserButton(elements) {
         const session = await api.getCurrentSession();
         if (session?.user) {
           openEditDialog(null, elements);
+
+          // Dodatkowe wywołanie setupAutoWidthInputs po krótkim opóźnieniu, aby upewnić się
+          // że wszystkie inputy są już poprawnie załadowane z placeholderami
+          setTimeout(() => {
+            const editDialog = elements.authElements.editDialog || elements.authElements.theDialog;
+            if (editDialog) {
+              setupAutoWidthInputs(editDialog);
+            }
+          }, 50);
         }
       } catch (error) {
         console.error("Błąd podczas sprawdzania sesji przy dodawaniu:", error);
@@ -971,9 +1127,14 @@ export function setupAddUserButton(elements) {
 }
 
 export function setupHoldToSaveButton(button, dialog, elements) {
-  // Tylko konfiguruj hold-to-save na urządzeniach mobilnych
-  if (window.innerWidth > 991) return;
+  // Najpierw usuńmy wszystkie istniejące event listenery z przycisku
+  const newButton = button.cloneNode(true);
+  if (button.parentNode) {
+    button.parentNode.replaceChild(newButton, button);
+  }
+  button = newButton;
 
+  // Inicjalizacja zmiennych i elementów niezależnie od rozmiaru ekranu
   let pressTimer;
   let progressAnimation;
   const holdDuration = 1000; // 1 sekunda dla hold-to-save
@@ -1036,21 +1197,21 @@ export function setupHoldToSaveButton(button, dialog, elements) {
     resetButton();
   };
 
-  // Usuń domyślną obsługę kliknięcia i zastąp obsługą przytrzymania na mobile
-  button.removeEventListener("click", () => gatherAndSubmitUserData(dialog, elements));
-
-  button.addEventListener("mousedown", handleStart);
-  button.addEventListener("touchstart", handleStart, { passive: false });
-  button.addEventListener("mouseup", handleEnd);
-  button.addEventListener("mouseleave", handleEnd);
-  button.addEventListener("touchend", handleEnd);
-  button.addEventListener("touchcancel", handleEnd);
+  // Dodajemy obsługę zdarzeń dotykowych tylko dla urządzeń mobilnych
+  if (window.innerWidth <= 991) {
+    button.addEventListener("mousedown", handleStart);
+    button.addEventListener("touchstart", handleStart, { passive: false });
+    button.addEventListener("mouseup", handleEnd);
+    button.addEventListener("mouseleave", handleEnd);
+    button.addEventListener("touchend", handleEnd);
+    button.addEventListener("touchcancel", handleEnd);
+  }
 
   // Dodaj obsługę kliknięcia na desktopie (dla szerokości ekranu > 991px)
   const handleClick = (e) => {
     if (window.innerWidth > 991) {
       e.preventDefault();
-      gatherAndSubmitUserData(dialog, elements);
+      saveUser();
     }
   };
 
@@ -1062,9 +1223,25 @@ export function setupHoldToSaveButton(button, dialog, elements) {
     if (window.innerWidth > 991) {
       // Desktopowy tryb - ukryj pasek postępu
       progressBar.style.display = "none";
+
+      // Usunięcie obsługi zdarzeń dotykowych
+      button.removeEventListener("mousedown", handleStart);
+      button.removeEventListener("touchstart", handleStart);
+      button.removeEventListener("mouseup", handleEnd);
+      button.removeEventListener("mouseleave", handleEnd);
+      button.removeEventListener("touchend", handleEnd);
+      button.removeEventListener("touchcancel", handleEnd);
     } else {
       // Mobilny tryb - pokaż pasek postępu
       progressBar.style.display = "block";
+
+      // Dodanie obsługi zdarzeń dotykowych
+      button.addEventListener("mousedown", handleStart);
+      button.addEventListener("touchstart", handleStart, { passive: false });
+      button.addEventListener("mouseup", handleEnd);
+      button.addEventListener("mouseleave", handleEnd);
+      button.addEventListener("touchend", handleEnd);
+      button.addEventListener("touchcancel", handleEnd);
     }
   };
 
@@ -1072,7 +1249,7 @@ export function setupHoldToSaveButton(button, dialog, elements) {
   updateBasedOnScreenSize(); // Wywołaj przy inicjalizacji
 
   // Czyszczenie przy zamknięciu dialogu
-  dialog.addEventListener("close", () => {
+  const closeListener = () => {
     button.removeEventListener("mousedown", handleStart);
     button.removeEventListener("touchstart", handleStart);
     button.removeEventListener("mouseup", handleEnd);
@@ -1081,7 +1258,88 @@ export function setupHoldToSaveButton(button, dialog, elements) {
     button.removeEventListener("touchcancel", handleEnd);
     button.removeEventListener("click", handleClick);
     window.removeEventListener("resize", updateBasedOnScreenSize);
+    dialog.removeEventListener("close", closeListener);
     resetButton();
-    progressBar.remove();
-  });
+
+    // Usuwamy pasek postępu tylko jeśli istnieje i ma rodzica
+    if (progressBar && progressBar.parentNode) {
+      progressBar.parentNode.removeChild(progressBar);
+    }
+  };
+
+  dialog.addEventListener("close", closeListener);
+}
+
+// Funkcja do walidacji pól w czasie rzeczywistym
+function setupLiveValidation(dialog) {
+  if (!dialog) return;
+
+  // Funkcja walidująca pole tekstowe
+  const validateNameField = (input) => {
+    const value = input.value.trim();
+    const label = input.closest("label");
+
+    if (!value || value === "") {
+      if (label) label.classList.add("is-invalid");
+      return false;
+    } else {
+      if (label) label.classList.remove("is-invalid");
+      return true;
+    }
+  };
+
+  // Funkcja walidująca pole wagi
+  const validateWeightField = (input) => {
+    const value = parseInt(input.value.trim(), 10);
+    const label = input.closest("label");
+
+    if (isNaN(value) || value <= 0) {
+      if (label) label.classList.add("is-invalid");
+      return false;
+    } else {
+      if (label) label.classList.remove("is-invalid");
+      return true;
+    }
+  };
+
+  // Dodaj listenery do pola imienia
+  const nameInput = dialog.querySelector('[data-action-input="name"] input');
+  if (nameInput) {
+    nameInput.addEventListener("input", () => validateNameField(nameInput));
+    nameInput.addEventListener("change", () => validateNameField(nameInput));
+    nameInput.addEventListener("blur", () => validateNameField(nameInput));
+
+    // Dodajemy funkcję walidacji do inputa, aby można było ją wywołać z zewnątrz
+    nameInput.validate = () => validateNameField(nameInput);
+  }
+
+  // Dodaj listenery do pola wagi
+  const weightInput = dialog.querySelector('[data-action-input="weight"] input');
+  if (weightInput) {
+    weightInput.addEventListener("input", () => validateWeightField(weightInput));
+    weightInput.addEventListener("change", () => validateWeightField(weightInput));
+    weightInput.addEventListener("blur", () => validateWeightField(weightInput));
+
+    // Dodajemy funkcję walidacji do inputa, aby można było ją wywołać z zewnątrz
+    weightInput.validate = () => validateWeightField(weightInput);
+  }
+
+  // Dodajemy metodę do walidacji wszystkich pól
+  dialog.validateAllFields = () => {
+    let isValid = true;
+    if (nameInput && nameInput.validate) {
+      isValid = nameInput.validate() && isValid;
+    }
+    if (weightInput && weightInput.validate) {
+      isValid = weightInput.validate() && isValid;
+    }
+    return isValid;
+  };
+
+  // Zwracamy obiekt z metodami walidacji
+  return {
+    validateName: nameInput ? () => validateNameField(nameInput) : () => true,
+    validateWeight: weightInput ? () => validateWeightField(weightInput) : () => true,
+    validateAll: () => dialog.validateAllFields(),
+  };
 }

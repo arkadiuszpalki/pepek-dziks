@@ -49,8 +49,16 @@ export function updateCellOpacity(state, elements) {
     (row) => row.style.display !== "none"
   );
 
+  // W przypadku, gdy jest domyślne sortowanie (elo, score) lub sortowanie po nazwie,
+  // przywracamy pełną widoczność dla wszystkich elementów
   if ((currentEx === "elo" && currentType === "score") || currentEx === "name") {
     visibleRows.forEach((row) => {
+      // Przywróć pełną widoczność dla wszystkich komórek danych
+      row.querySelectorAll(".table_cell.is-data").forEach((cell) => {
+        cell.style.opacity = fullOpacity;
+      });
+
+      // Przywróć pełną widoczność dla wszystkich elementów w komórkach
       row.querySelectorAll("div[data-user-max], .table_cell.is-data:last-child").forEach((cell) => {
         cell.style.opacity = fullOpacity;
         const maxWrap = cell.querySelector("[data-max-reps-wrap]");
@@ -79,6 +87,17 @@ export function updateCellOpacity(state, elements) {
           maxWrap.style.display = hiddenDisplay;
         }
       });
+
+      // Dodatkowo upewnij się, że kolumna ELO/SUM ma pełną widoczność
+      const eloCell = row.querySelector("[data-user-elo]");
+      if (eloCell) {
+        eloCell.style.opacity = fullOpacity;
+        const eloWrap = eloCell.querySelector("[data-elo-wrap]");
+        const sumWrap = eloCell.querySelector("[data-sum-wrap]");
+
+        if (eloWrap) eloWrap.style.opacity = fullOpacity;
+        if (sumWrap) sumWrap.style.opacity = fullOpacity;
+      }
     });
   } else {
     visibleRows.forEach((row) => {
@@ -104,10 +123,9 @@ export function updateCellOpacity(state, elements) {
         if (isExerciseSort) {
           if (currentType === "max-reps") {
             if (isMobile) {
-              // Na mobile pokazujemy obie wartości, ale z różnym opacity
+              // Na mobile pokazujemy TYLKO max-reps, a ukrywamy one-rep
               if (oneWrap) {
-                oneWrap.style.display = defaultDisplay;
-                oneWrap.style.opacity = mobileDimmedOpacity;
+                oneWrap.style.display = hiddenDisplay;
               }
             } else {
               // Na desktopie ukrywamy one-rep przy sortowaniu max-reps
@@ -119,10 +137,9 @@ export function updateCellOpacity(state, elements) {
             }
           } else if (currentType === "one-rep") {
             if (isMobile) {
-              // Na mobile pokazujemy obie wartości, ale z różnym opacity
+              // Na mobile pokazujemy TYLKO one-rep, a ukrywamy max-reps
               if (maxWrap) {
-                maxWrap.style.display = defaultDisplay;
-                maxWrap.style.opacity = mobileDimmedOpacity;
+                maxWrap.style.display = hiddenDisplay;
               }
             } else {
               // Na desktopie ukrywamy max-reps przy sortowaniu one-rep
@@ -139,21 +156,27 @@ export function updateCellOpacity(state, elements) {
         }
       });
 
+      // Zawsze wyświetlamy kolumny ELO i SUM, ale zmieniamy ich widoczność
       const eloWrap = row.querySelector("[data-elo-wrap]");
       const sumWrap = row.querySelector("[data-sum-wrap]");
 
-      if (currentEx === "elo" && currentType === "score") {
-        if (eloWrap) eloWrap.style.display = defaultDisplay;
-        if (sumWrap) sumWrap.style.display = defaultDisplay;
-      } else {
-        // Na urządzeniach mobilnych zawsze pokazujemy ELO
-        if (isMobile) {
-          if (eloWrap) eloWrap.style.display = defaultDisplay;
-          if (sumWrap) sumWrap.style.display = defaultDisplay;
-        } else {
-          if (eloWrap) eloWrap.style.display = hiddenDisplay;
-          if (sumWrap) sumWrap.style.display = hiddenDisplay;
+      // Zawsze pokazujemy ELO i SUM, niezależnie od sortowania
+      if (eloWrap) eloWrap.style.display = defaultDisplay;
+      if (sumWrap) sumWrap.style.display = defaultDisplay;
+
+      // Dostosuj opacity w zależności od typu sortowania
+      if (currentEx === "elo") {
+        if (currentType === "score" && eloWrap) {
+          eloWrap.style.opacity = fullOpacity;
+          if (sumWrap) sumWrap.style.opacity = dimmedOpacity;
+        } else if (currentType === "sum" && sumWrap) {
+          sumWrap.style.opacity = fullOpacity;
+          if (eloWrap) eloWrap.style.opacity = dimmedOpacity;
         }
+      } else {
+        // Dla innych typów sortowania, przyciemniamy oba elementy
+        if (eloWrap) eloWrap.style.opacity = dimmedOpacity;
+        if (sumWrap) sumWrap.style.opacity = dimmedOpacity;
       }
     });
   }
@@ -228,59 +251,68 @@ export function setupSorting(state, elements) {
       }
     });
 
-  // Obsługa przycisku toggle-view dla widoku mobilnego
-  const toggleViewButton = document.querySelector("button[data-button-action='toggle-view']");
-  if (toggleViewButton) {
-    // Sprawdź, czy istnieje zapisana preferencja użytkownika
-    const isExtraView = localStorage.getItem("dziks_view_mode") === "extra";
-
-    // Ustaw początkowy atrybut data-toggle-view
-    toggleViewButton.setAttribute("data-toggle-view", isExtraView ? "extra" : "main");
-
-    // Ustaw początkowy stan widoczności extras
-    document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
-      extrasElement.style.display = isExtraView ? "grid" : "none";
-    });
-
-    // Dodaj obsługę kliknięcia przycisku
-    toggleViewButton.addEventListener("click", () => {
-      // Odczytaj aktualny stan z atrybutu
-      const currentView = toggleViewButton.getAttribute("data-toggle-view");
-      const newView = currentView === "main" ? "extra" : "main";
-
-      // Zapisz nowy stan
-      localStorage.setItem("dziks_view_mode", newView);
-
-      // Zmień atrybut przycisku
-      toggleViewButton.setAttribute("data-toggle-view", newView);
-
-      // Zmień widoczność extras
-      document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
-        extrasElement.style.display = newView === "extra" ? "grid" : "none";
-      });
-    });
-  }
-
-  const sortButtonsContainer = document.querySelector(
-    ".leaderboard_actions .actions-wrap:nth-child(2)"
-  );
-
-  if (!sortButtonsContainer) {
-    return;
-  }
-
   // Funkcja do pokazania tylko kolumny ELO
   const showOnlyEloColumn = () => {
     // Na mobile nie ukrywamy kolumn, tylko ustawiamy opacity
     if (window.innerWidth <= 991) {
-      // Upewnij się, że elementy ELO są zawsze widoczne
-      document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
-        column.style.opacity = "1";
-      });
-      // Przy ładowaniu strony wszystkie elementy w extras powinny mieć pełne opacity
-      document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
-        column.style.opacity = "1";
-      });
+      // Sprawdź, czy jesteśmy w trybie "main" czy "extra"
+      const isExtraView = localStorage.getItem("dziks_view_mode") === "extra";
+
+      if (isExtraView) {
+        // Tryb "extra" - wszystkie elementy mają pełną widoczność
+        document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
+          column.style.opacity = "1";
+          column.setAttribute("data-mobile-solo", "show"); // Użyj atrybutu zamiast style.display
+
+          // Upewnij się, że wewnętrzne elementy również mają pełną widoczność
+          const eloWrap = column.querySelector("[data-elo-wrap]");
+          const sumWrap = column.querySelector("[data-sum-wrap]");
+          if (eloWrap) eloWrap.style.opacity = "1";
+          if (sumWrap) sumWrap.style.opacity = "1";
+        });
+
+        // Wszystkie elementy w extras powinny mieć pełne opacity
+        document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
+          column.style.opacity = "1";
+
+          // Upewnij się, że wewnętrzne elementy również mają pełną widoczność
+          const maxWrap = column.querySelector("[data-max-reps-wrap]");
+          const oneWrap = column.querySelector("[data-one-rep-wrap]");
+
+          if (maxWrap) {
+            maxWrap.style.opacity = "1";
+            maxWrap.style.display = "";
+          }
+          if (oneWrap) {
+            oneWrap.style.opacity = "1";
+            oneWrap.style.display = "";
+          }
+
+          // Wyjątek dla press - tylko "one-rep"
+          if (column.dataset.userMax === "press" && maxWrap) {
+            maxWrap.style.display = "none";
+          }
+        });
+      } else {
+        // Tryb "main" - pokaż tylko ELO/SUM, usuń wszystkie substytuty
+        document.querySelectorAll(".table_row").forEach((row) => {
+          const eloCell = row.querySelector("[data-user-elo]");
+          if (eloCell) {
+            eloCell.setAttribute("data-mobile-solo", "show"); // Użyj atrybutu zamiast style.display
+            eloCell.style.opacity = "1";
+
+            // Upewnij się, że wewnętrzne elementy również mają pełną widoczność
+            const eloWrap = eloCell.querySelector("[data-elo-wrap]");
+            const sumWrap = eloCell.querySelector("[data-sum-wrap]");
+            if (eloWrap) eloWrap.style.opacity = "1";
+            if (sumWrap) sumWrap.style.opacity = "1";
+          }
+
+          // Usuń wszystkie komórki zastępcze
+          const substitutes = row.querySelectorAll(".is-mobile-substitute");
+          substitutes.forEach((sub) => row.removeChild(sub));
+        });
+      }
     } else {
       // Dla desktop zostawiamy stare zachowanie
       document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
@@ -300,18 +332,94 @@ export function setupSorting(state, elements) {
   // Funkcja do pokazania tylko wybranej kolumny ćwiczenia
   const showOnlyExerciseColumn = (exerciseKey) => {
     if (window.innerWidth <= 991) {
-      // Na mobile ustawiamy opacity dla elementów w tabeli extras
-      // Upewnij się, że elementy ELO są zawsze widoczne
-      document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
-        column.style.opacity = "1";
-      });
-      document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
-        if (column.dataset.userMax === exerciseKey) {
+      // Sprawdź, czy jesteśmy w trybie "main" czy "extra"
+      const isExtraView = localStorage.getItem("dziks_view_mode") === "extra";
+      // Sprawdź aktualny typ sortowania
+      const currentType = state.currentSort.type;
+
+      if (isExtraView) {
+        // Tryb "extra" - ELO/SUM zawsze widoczne, tylko odpowiednie ćwiczenie ma opacity 1
+        document.querySelectorAll(".table_cell.is-data:last-child").forEach((column) => {
           column.style.opacity = "1";
-        } else {
-          column.style.opacity = "0.5";
-        }
-      });
+          column.setAttribute("data-mobile-solo", "show"); // Użyj atrybutu zamiast style.display
+          const eloWrap = column.querySelector("[data-elo-wrap]");
+          const sumWrap = column.querySelector("[data-sum-wrap]");
+          if (eloWrap) eloWrap.style.opacity = "1";
+          if (sumWrap) sumWrap.style.opacity = "1";
+        });
+
+        // W trybie "extra" ustawiamy opacity dla elementów w tabeli extras
+        document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
+          const maxWrap = column.querySelector("[data-max-reps-wrap]");
+          const oneWrap = column.querySelector("[data-one-rep-wrap]");
+
+          if (column.dataset.userMax === exerciseKey) {
+            column.style.opacity = "1";
+
+            // Pokaż tylko aktualnie sortowany typ
+            if (currentType === "max-reps") {
+              if (maxWrap) maxWrap.style.display = "";
+              if (oneWrap) oneWrap.style.display = "none";
+              if (maxWrap) maxWrap.style.opacity = "1";
+            } else if (currentType === "one-rep" || exerciseKey === "press") {
+              if (maxWrap) maxWrap.style.display = "none";
+              if (oneWrap) oneWrap.style.display = "";
+              if (oneWrap) oneWrap.style.opacity = "1";
+            }
+          } else {
+            column.style.opacity = "0.5";
+
+            // Pokaż tylko aktualnie sortowany typ
+            if (currentType === "max-reps") {
+              if (maxWrap) maxWrap.style.display = "";
+              if (oneWrap) oneWrap.style.display = "none";
+              if (maxWrap) maxWrap.style.opacity = "0.5";
+            } else if (currentType === "one-rep" || column.dataset.userMax === "press") {
+              if (maxWrap) maxWrap.style.display = "none";
+              if (oneWrap) oneWrap.style.display = "";
+              if (oneWrap) oneWrap.style.opacity = "0.5";
+            }
+          }
+        });
+      } else {
+        // Tryb "main" - zamiana ELO/SUM na odpowiednie ćwiczenie
+        document.querySelectorAll(".table_row").forEach((row) => {
+          const eloCell = row.querySelector("[data-user-elo]");
+          const exerciseCell = row.querySelector(`[data-user-max="${exerciseKey}"]`);
+
+          if (eloCell && exerciseCell) {
+            // Ukryj komórkę ELO/SUM
+            eloCell.setAttribute("data-mobile-solo", ""); // Użyj atrybutu zamiast style.display
+
+            // Stwórz klon komórki z ćwiczeniem i dodaj jako ostatnią komórkę
+            const exerciseClone = exerciseCell.cloneNode(true);
+            exerciseClone.classList.add("is-mobile-substitute");
+            exerciseClone.setAttribute("data-mobile-solo", "show"); // Pokaż klona
+            exerciseClone.style.opacity = "1";
+
+            // Pokaż tylko aktualnie sortowany typ w klonie
+            const maxWrap = exerciseClone.querySelector("[data-max-reps-wrap]");
+            const oneWrap = exerciseClone.querySelector("[data-one-rep-wrap]");
+
+            if (currentType === "max-reps") {
+              if (maxWrap) maxWrap.style.display = "";
+              if (oneWrap) oneWrap.style.display = "none";
+            } else if (currentType === "one-rep" || exerciseKey === "press") {
+              if (maxWrap) maxWrap.style.display = "none";
+              if (oneWrap) oneWrap.style.display = "";
+            }
+
+            // Jeśli już istnieje komórka zastępcza, usuń ją
+            const existingSubstitute = row.querySelector(".is-mobile-substitute");
+            if (existingSubstitute) {
+              row.removeChild(existingSubstitute);
+            }
+
+            // Dodaj nową komórkę zastępczą
+            row.appendChild(exerciseClone);
+          }
+        });
+      }
     } else {
       // Dla desktop zostawiamy stare zachowanie
       document.querySelectorAll('[data-mobile-solo="show"]').forEach((column) => {
@@ -327,6 +435,171 @@ export function setupSorting(state, elements) {
       });
     }
   };
+
+  // Obsługa przycisku toggle-view dla widoku mobilnego
+  const toggleViewButton = document.querySelector("button[data-button-action='toggle-view']");
+  if (toggleViewButton) {
+    // Sprawdź, czy istnieje zapisana preferencja użytkownika
+    const isExtraView = localStorage.getItem("dziks_view_mode") === "extra";
+
+    // Ustaw początkowy atrybut data-toggle-view
+    toggleViewButton.setAttribute("data-toggle-view", isExtraView ? "extra" : "main");
+
+    // Ustaw początkowy stan widoczności extras
+    document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
+      extrasElement.style.display = isExtraView ? "grid" : "none";
+    });
+
+    // Funkcja do aktualizacji widoku po zmianie trybu
+    const updateViewBasedOnSorting = (newView) => {
+      // Sprawdź aktualny stan sortowania
+      const currentEx = state.currentSort.exercise;
+      const currentType = state.currentSort.type;
+      const dimmedOpacity = "0.3";
+
+      if (newView === "main") {
+        // W widoku "main" pokazujemy elementy zgodnie z aktualnym sortowaniem
+        if (currentEx === "elo" && currentType === "score") {
+          // Jeśli sortujemy według ELO, wywołaj showOnlyEloColumn
+          showOnlyEloColumn();
+        } else if (currentEx in elements.config.exercises) {
+          // Jeśli sortujemy według ćwiczenia, wywołaj showOnlyExerciseColumn
+          showOnlyExerciseColumn(currentEx);
+        }
+      } else {
+        // W widoku "extra" zawsze pokazujemy ELO/SUM, niezależnie od sortowania
+        // Ukryj wszystkie ćwiczenia w widoku głównym
+        document.querySelectorAll(".table_row").forEach((row) => {
+          // Usuń wszystkie komórki zastępcze
+          const substitutes = row.querySelectorAll(".is-mobile-substitute");
+          substitutes.forEach((sub) => row.removeChild(sub));
+
+          // Pokaż komórkę ELO/SUM
+          const eloCell = row.querySelector("[data-user-elo]");
+          if (eloCell) {
+            eloCell.setAttribute("data-mobile-solo", "show");
+            eloCell.style.opacity = "1";
+
+            // Ustaw odpowiednie opacity dla elementów ELO i SUM w zależności od sortowania
+            const eloWrap = eloCell.querySelector("[data-elo-wrap]");
+            const sumWrap = eloCell.querySelector("[data-sum-wrap]");
+
+            if (currentEx === "elo") {
+              // Sortowanie po ELO/SUM
+              if (currentType === "score") {
+                // Sortowanie po ELO - podświetl ELO, przyciemnij SUM
+                if (eloWrap) eloWrap.style.opacity = "1";
+                if (sumWrap) sumWrap.style.opacity = dimmedOpacity;
+              } else if (currentType === "sum") {
+                // Sortowanie po SUM - podświetl SUM, przyciemnij ELO
+                if (eloWrap) eloWrap.style.opacity = dimmedOpacity;
+                if (sumWrap) sumWrap.style.opacity = "1";
+              }
+            } else {
+              // Sortowanie po ćwiczeniu - przyciemnij oba elementy ELO i SUM
+              if (eloWrap) eloWrap.style.opacity = dimmedOpacity;
+              if (sumWrap) sumWrap.style.opacity = dimmedOpacity;
+            }
+          }
+        });
+
+        // W trybie "extra" podświetl aktualnie sortowane ćwiczenie w extras
+        if (currentEx in elements.config.exercises) {
+          document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
+            const maxWrap = column.querySelector("[data-max-reps-wrap]");
+            const oneWrap = column.querySelector("[data-one-rep-wrap]");
+
+            // W trybie "extra" zawsze pokazujemy wszystkie elementy MR i OR
+            if (maxWrap) {
+              maxWrap.style.display = "";
+              // Wyjątek dla press - tylko "one-rep"
+              if (column.dataset.userMax === "press") {
+                maxWrap.style.display = "none";
+              }
+            }
+            if (oneWrap) {
+              oneWrap.style.display = "";
+            }
+
+            if (column.dataset.userMax === currentEx) {
+              column.style.opacity = "1";
+
+              // Ustaw pełne opacity tylko dla aktualnie sortowanego typu
+              if (currentType === "max-reps") {
+                if (maxWrap) maxWrap.style.opacity = "1";
+                if (oneWrap) oneWrap.style.opacity = dimmedOpacity;
+              } else if (currentType === "one-rep") {
+                if (maxWrap && column.dataset.userMax !== "press")
+                  maxWrap.style.opacity = dimmedOpacity;
+                if (oneWrap) oneWrap.style.opacity = "1";
+              }
+            } else {
+              column.style.opacity = "0.5";
+
+              // Wszystkie elementy niepodświetlonej kolumny mają obniżone opacity
+              if (maxWrap) maxWrap.style.opacity = "0.5";
+              if (oneWrap) oneWrap.style.opacity = "0.5";
+            }
+          });
+        } else {
+          // Jeśli sortujemy według ELO/SUM, wszystkie ćwiczenia w extras mają równe opacity
+          document.querySelectorAll("[data-table-extras] [data-user-max]").forEach((column) => {
+            column.style.opacity = "1";
+
+            // Pokaż wszystkie elementy
+            const maxWrap = column.querySelector("[data-max-reps-wrap]");
+            const oneWrap = column.querySelector("[data-one-rep-wrap]");
+
+            if (maxWrap) {
+              maxWrap.style.opacity = "1";
+              maxWrap.style.display = "";
+            }
+            if (oneWrap) {
+              oneWrap.style.opacity = "1";
+              oneWrap.style.display = "";
+            }
+
+            // Wyjątek dla press - tylko "one-rep"
+            if (column.dataset.userMax === "press" && maxWrap) {
+              maxWrap.style.display = "none";
+            }
+          });
+        }
+      }
+    };
+
+    // Dodaj obsługę kliknięcia przycisku
+    toggleViewButton.addEventListener("click", () => {
+      // Odczytaj aktualny stan z atrybutu
+      const currentView = toggleViewButton.getAttribute("data-toggle-view");
+      const newView = currentView === "main" ? "extra" : "main";
+
+      // Zapisz nowy stan
+      localStorage.setItem("dziks_view_mode", newView);
+
+      // Zmień atrybut przycisku
+      toggleViewButton.setAttribute("data-toggle-view", newView);
+
+      // Zmień widoczność extras
+      document.querySelectorAll("[data-table-extras]").forEach((extrasElement) => {
+        extrasElement.style.display = newView === "extra" ? "grid" : "none";
+      });
+
+      // Zaktualizuj widok na podstawie aktualnego sortowania
+      updateViewBasedOnSorting(newView);
+    });
+
+    // Wywołaj na początku, aby dostosować widok do początkowego stanu sortowania
+    updateViewBasedOnSorting(isExtraView ? "extra" : "main");
+  }
+
+  const sortButtonsContainer = document.querySelector(
+    ".leaderboard_actions .actions-wrap:nth-child(2)"
+  );
+
+  if (!sortButtonsContainer) {
+    return;
+  }
 
   // Zastosuj domyślny widok mobilny przy ładowaniu strony
   showOnlyEloColumn();

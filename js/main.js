@@ -406,23 +406,33 @@ document.addEventListener("DOMContentLoaded", async () => {
       const isMobile = window.innerWidth <= 991;
 
       if (isMobile) {
-        // Znajduje wszystkie pola z atrybutem autofocus
-        const autofocusFields = dialogElement.querySelectorAll("[autofocus]");
+        // Znajduje wszystkie pola formularza
+        const inputFields = dialogElement.querySelectorAll("input");
 
-        // Usuwa atrybut autofocus
-        autofocusFields.forEach((field) => {
-          field.removeAttribute("autofocus");
+        // Ustawia atrybut zapobiegający focusowi
+        inputFields.forEach((field) => {
+          field.setAttribute("data-prevent-focus", "true");
+          field.setAttribute("tabindex", "-1");
+
+          // Przywróć tabindex po pewnym czasie
+          setTimeout(() => {
+            field.setAttribute("tabindex", "0");
+          }, 500);
         });
 
-        // Dodatkowe zabezpieczenie - zapobiega focusowi na polach input po otwarciu dialogu
-        dialogElement.addEventListener("open", () => {
+        // Dodatkowe zabezpieczenie - zapobiega focusowi po otwarciu dialogu
+        const preventFocus = () => {
           setTimeout(() => {
             // Blur aktywnego elementu
             if (document.activeElement && document.activeElement.tagName === "INPUT") {
               document.activeElement.blur();
             }
           }, 50);
-        });
+        };
+
+        // Nasłuchiwanie na otwarcie dialogu
+        dialogElement.addEventListener("showModal", preventFocus);
+        dialogElement.addEventListener("open", preventFocus);
       }
     }
 
