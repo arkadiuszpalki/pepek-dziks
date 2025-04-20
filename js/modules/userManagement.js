@@ -219,9 +219,7 @@ export function setupDialogInteractions(elements) {
   }
 
   if (confirmButton) {
-    confirmButton.addEventListener("click", () => {
-      gatherAndSubmitUserData(dialog, elements);
-    });
+    setupHoldToSaveButton(confirmButton, dialog, elements);
   }
 }
 
@@ -945,4 +943,120 @@ export function setupAddUserButton(elements) {
       }
     });
   }
+}
+
+export function setupHoldToSaveButton(button, dialog, elements) {
+  // Tylko konfiguruj hold-to-save na urządzeniach mobilnych
+  if (window.innerWidth > 991) return;
+
+  let pressTimer;
+  let progressAnimation;
+  const holdDuration = 1000; // 1 sekunda dla hold-to-save
+  const progressBar = document.createElement("div");
+  const originalLabel = button.querySelector(".button_label")?.textContent || "Zapisz";
+
+  progressBar.style.position = "absolute";
+  progressBar.style.bottom = "0";
+  progressBar.style.left = "0";
+  progressBar.style.height = "3px";
+  progressBar.style.backgroundColor = "#FFFFFF"; // Biały pasek postępu
+  progressBar.style.width = "0";
+  progressBar.style.transition = "width 0.05s linear";
+  button.style.position = "relative";
+  button.appendChild(progressBar);
+
+  const resetButton = () => {
+    if (pressTimer) clearTimeout(pressTimer);
+    if (progressAnimation) cancelAnimationFrame(progressAnimation);
+    progressBar.style.width = "0";
+    const label = button.querySelector(".button_label");
+    if (label) label.textContent = originalLabel;
+    button.classList.remove("is-saving");
+  };
+
+  const startProgress = (startTime) => {
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / holdDuration) * 100, 100);
+      progressBar.style.width = `${progress}%`;
+
+      if (elapsed < holdDuration) {
+        progressAnimation = requestAnimationFrame(animate);
+      }
+    };
+    progressAnimation = requestAnimationFrame(animate);
+  };
+
+  const saveUser = () => {
+    gatherAndSubmitUserData(dialog, elements);
+  };
+
+  const handleStart = (e) => {
+    // Zapobiegaj domyślnej akcji przycisku
+    e.preventDefault();
+
+    const label = button.querySelector(".button_label");
+    if (label) label.textContent = "Trzymaj...";
+    button.classList.add("is-saving");
+
+    const startTime = Date.now();
+    startProgress(startTime);
+
+    pressTimer = setTimeout(() => {
+      saveUser();
+    }, holdDuration);
+  };
+
+  const handleEnd = () => {
+    resetButton();
+  };
+
+  // Usuń domyślną obsługę kliknięcia i zastąp obsługą przytrzymania na mobile
+  button.removeEventListener("click", () => gatherAndSubmitUserData(dialog, elements));
+
+  button.addEventListener("mousedown", handleStart);
+  button.addEventListener("touchstart", handleStart, { passive: false });
+  button.addEventListener("mouseup", handleEnd);
+  button.addEventListener("mouseleave", handleEnd);
+  button.addEventListener("touchend", handleEnd);
+  button.addEventListener("touchcancel", handleEnd);
+
+  // Dodaj obsługę kliknięcia na desktopie (dla szerokości ekranu > 991px)
+  const handleClick = (e) => {
+    if (window.innerWidth > 991) {
+      e.preventDefault();
+      gatherAndSubmitUserData(dialog, elements);
+    }
+  };
+
+  button.addEventListener("click", handleClick);
+
+  // Aktualizacja przy zmianie rozmiaru ekranu
+  const updateBasedOnScreenSize = () => {
+    resetButton();
+    if (window.innerWidth > 991) {
+      // Desktopowy tryb - ukryj pasek postępu
+      progressBar.style.display = "none";
+    } else {
+      // Mobilny tryb - pokaż pasek postępu
+      progressBar.style.display = "block";
+    }
+  };
+
+  window.addEventListener("resize", updateBasedOnScreenSize);
+  updateBasedOnScreenSize(); // Wywołaj przy inicjalizacji
+
+  // Czyszczenie przy zamknięciu dialogu
+  dialog.addEventListener("close", () => {
+    button.removeEventListener("mousedown", handleStart);
+    button.removeEventListener("touchstart", handleStart);
+    button.removeEventListener("mouseup", handleEnd);
+    button.removeEventListener("mouseleave", handleEnd);
+    button.removeEventListener("touchend", handleEnd);
+    button.removeEventListener("touchcancel", handleEnd);
+    button.removeEventListener("click", handleClick);
+    window.removeEventListener("resize", updateBasedOnScreenSize);
+    resetButton();
+    progressBar.remove();
+  });
 }
