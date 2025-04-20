@@ -13,6 +13,12 @@ export function closeAllDialogs() {
   });
 
   activeDialogs.clear();
+
+  // Przywróć normalną skalę dla elementu [data-table] po zamknięciu wszystkich dialogów
+  const tableElement = document.querySelector("[data-table]");
+  if (tableElement) {
+    tableElement.style.transform = "scale(1)";
+  }
 }
 
 /**
@@ -30,6 +36,13 @@ export function openDialog(dialog) {
 
   activeDialogs.add(dialog);
 
+  // Zastosuj skalę 0.95 do elementu [data-table] gdy dialog jest otwarty
+  const tableElement = document.querySelector("[data-table]");
+  if (tableElement) {
+    tableElement.style.transform = "scale(0.95)";
+    tableElement.style.transition = "transform 0.3s ease";
+  }
+
   setupDialogClickOutside(dialog);
 }
 
@@ -45,6 +58,14 @@ export function closeDialog(dialog) {
   }
 
   activeDialogs.delete(dialog);
+
+  // Jeśli nie ma już aktywnych dialogów, przywróć normalną skalę dla elementu [data-table]
+  if (activeDialogs.size === 0) {
+    const tableElement = document.querySelector("[data-table]");
+    if (tableElement) {
+      tableElement.style.transform = "scale(1)";
+    }
+  }
 }
 
 /**
@@ -135,7 +156,6 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
 
   if (elements && elements.authElements) {
     elements.authElements.loginDialog = document.querySelector("[data-dialog-login]");
-
     elements.authElements.editDialog = document.querySelector("[data-dialog-edit]");
 
     if (elements.authElements.loginDialog) {
@@ -147,6 +167,13 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
           closeAllDialogs();
           activeDialogs.add(elements.authElements.loginDialog);
 
+          // Zastosuj skalę 0.95 do elementu [data-table] gdy dialog logowania jest otwarty
+          const tableElement = document.querySelector("[data-table]");
+          if (tableElement) {
+            tableElement.style.transform = "scale(0.95)";
+            tableElement.style.transition = "transform 0.3s ease";
+          }
+
           setupDialogClickOutside(elements.authElements.loginDialog);
 
           return originalShowModal.apply(this, arguments);
@@ -155,6 +182,14 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
 
       elements.authElements.loginDialog.addEventListener("close", () => {
         activeDialogs.delete(elements.authElements.loginDialog);
+
+        // Jeśli nie ma już aktywnych dialogów, przywróć normalną skalę dla elementu [data-table]
+        if (activeDialogs.size === 0) {
+          const tableElement = document.querySelector("[data-table]");
+          if (tableElement) {
+            tableElement.style.transform = "scale(1)";
+          }
+        }
       });
     }
 
@@ -165,6 +200,13 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
           closeAllDialogs();
           activeDialogs.add(elements.authElements.editDialog);
 
+          // Zastosuj skalę 0.95 do elementu [data-table] gdy dialog edycji jest otwarty
+          const tableElement = document.querySelector("[data-table]");
+          if (tableElement) {
+            tableElement.style.transform = "scale(0.95)";
+            tableElement.style.transition = "transform 0.3s ease";
+          }
+
           setupDialogClickOutside(elements.authElements.editDialog);
 
           return originalShowModal.apply(this, arguments);
@@ -173,6 +215,14 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
 
       elements.authElements.editDialog.addEventListener("close", () => {
         activeDialogs.delete(elements.authElements.editDialog);
+
+        // Jeśli nie ma już aktywnych dialogów, przywróć normalną skalę dla elementu [data-table]
+        if (activeDialogs.size === 0) {
+          const tableElement = document.querySelector("[data-table]");
+          if (tableElement) {
+            tableElement.style.transform = "scale(1)";
+          }
+        }
       });
     }
   }
@@ -196,6 +246,18 @@ export function initializeAllDialogs(elements, setupDialogSwipeGesture) {
       dialog.addEventListener("click", (e) => {
         if (e.target === dialog) {
           closeDialog(dialog);
+        }
+      });
+
+      // Dodaj event listener dla zdarzenia close, aby przywrócić skalę tabeli
+      dialog.addEventListener("close", () => {
+        // Jeśli nie ma już aktywnych dialogów, przywróć normalną skalę dla elementu [data-table]
+        if (activeDialogs.size === 0) {
+          const tableElement = document.querySelector("[data-table]");
+          if (tableElement) {
+            tableElement.style.transform = "scale(1)";
+            tableElement.style.transition = "transform 0.3s ease";
+          }
         }
       });
     });

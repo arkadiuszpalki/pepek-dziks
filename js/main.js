@@ -15,6 +15,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.warn("GSAP or Flip not loaded. Animations will be disabled.");
   }
 
+  // Przeniesienie przycisku add-user do .page_wrap na urządzeniach mobilnych
+  const actionAddButton = document.querySelector(".action_add");
+  const pageWrap = document.querySelector(".page_wrap");
+
+  if (actionAddButton && pageWrap) {
+    const moveButtonToPageWrap = () => {
+      if (window.innerWidth <= 991) {
+        // Mobile breakpoint
+        pageWrap.appendChild(actionAddButton);
+      } else {
+        // Jeśli wracamy do desktop, sprawdzamy czy przycisk jest już w .page_wrap
+        if (actionAddButton.parentElement === pageWrap) {
+          // Przywracamy do poprzedniej lokalizacji (jeśli trzeba)
+          const actionsWrap = document.querySelector(
+            ".leaderboard_table-header .leaderboard_actions .actions-wrap"
+          );
+          if (actionsWrap) {
+            actionsWrap.appendChild(actionAddButton);
+          }
+        }
+      }
+    };
+
+    moveButtonToPageWrap(); // Wykonaj przy załadowaniu
+    window.addEventListener("resize", moveButtonToPageWrap); // Wykonaj przy zmianie rozmiaru
+  }
+
   const supabaseClient = api.initializeSupabase();
 
   // Sprawdź czy mamy działającego klienta Supabase
@@ -536,11 +563,21 @@ function setupDialogSwipeGesture(dialogElement, options = {}) {
     // Only allow dragging down, not up
     if (deltaY < 0) return;
 
-    // Apply transform with translateY and scale reduction as dialog is pulled down
+    // Apply transform with translateY and no scale reduction (usunięte skalowanie dialogu)
     const translateY = Math.min(deltaY, DISMISS_THRESHOLD * 1.5);
-    const scale = Math.max(0.9, 1 - translateY / (DISMISS_THRESHOLD * 5));
 
-    dialogElement.style.transform = `translateY(${translateY}px) scale(${scale})`;
+    // Tylko przesuwamy dialog, bez skalowania
+    dialogElement.style.transform = `translateY(${translateY}px)`;
+
+    // Stopniowo zmieniamy skalę elementu [data-table] z 0.95 do 1.0 podczas przeciągania
+    const tableElement = document.querySelector("[data-table]");
+    if (tableElement) {
+      // Obliczamy skalę od 0.95 do 1.0 w zależności od pozycji przeciągnięcia
+      const progress = Math.min(1, deltaY / DISMISS_THRESHOLD);
+      const newScale = 0.95 + 0.05 * progress;
+      tableElement.style.transform = `scale(${newScale})`;
+      tableElement.style.transition = "none"; // Wyłączamy transition podczas przeciągania
+    }
 
     // If they're dragging down significantly, prevent default to avoid page scroll
     if (deltaY > 10) {
@@ -558,7 +595,14 @@ function setupDialogSwipeGesture(dialogElement, options = {}) {
 
     if (deltaY >= DISMISS_THRESHOLD) {
       // Swipe threshold reached, dismiss the dialog with custom animation
-      dialogElement.style.transform = `translateY(${window.innerHeight}px) scale(0.8)`;
+      dialogElement.style.transform = `translateY(${window.innerHeight}px)`;
+
+      // Po przekroczeniu progu, przywracamy pełną skalę tabeli z animacją
+      const tableElement = document.querySelector("[data-table]");
+      if (tableElement) {
+        tableElement.style.transition = "transform 0.3s ease";
+        tableElement.style.transform = "scale(1)";
+      }
 
       // After animation completes, hide the dialog properly
       setTimeout(() => {
@@ -582,6 +626,13 @@ function setupDialogSwipeGesture(dialogElement, options = {}) {
     } else {
       // Not enough to dismiss, snap back with bouncy animation
       dialogElement.style.transform = "";
+
+      // Przywracamy skalę tabeli do 0.95, gdy dialog pozostaje otwarty
+      const tableElement = document.querySelector("[data-table]");
+      if (tableElement) {
+        tableElement.style.transition = "transform 0.3s ease";
+        tableElement.style.transform = "scale(0.95)";
+      }
 
       // Reset styles after animation
       setTimeout(() => {
