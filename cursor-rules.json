@@ -3,6 +3,7 @@
     "do not add cosnol logs - only when user ask to debug",
     "do not add comments to the code",
     "user is mostly working in webflow - so you need to write code that is compatible with webflow - or instruct user how to implement it",
-    "always write code in javascript"
+    "always write code in javascript",
+    "always ask questions to clarify the user's intent before making any changes to the code"
   ]
 }

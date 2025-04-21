@@ -16,13 +16,13 @@ function addValidationStyles() {
   styleElement.id = "validation-styles";
   styleElement.textContent = `
     .is-invalid {
-      border: 2px solid #ff0000 !important;
+      border: 1.5px solid #ff0000 !important;
     }
     
     /* Styl dla labela zawierającego input */
     label.is-invalid,
     label.input.is-invalid {
-      border: 2px solid #ff0000 !important;
+      border: 1.5px solid #ff0000 !important;
     }
     
     /* Gdy label jest nieprawidłowy, usuwamy obramowanie z inputa wewnątrz niego */
