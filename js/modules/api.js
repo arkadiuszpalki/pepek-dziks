@@ -8,7 +8,6 @@ export function initializeSupabase() {
 
   // Sprawdź czy klucz API istnieje
   if (!SUPABASE_CONFIG.key) {
-    console.error("Błąd inicjalizacji Supabase: Brak klucza API");
     return null;
   }
 
@@ -19,7 +18,6 @@ export function initializeSupabase() {
 export async function fetchLeaderboardData() {
   // Sprawdź czy klucz API istnieje
   if (!SUPABASE_CONFIG.key) {
-    console.error("Błąd pobierania danych: Brak klucza API Supabase");
     return [];
   }
 
@@ -40,7 +38,6 @@ export async function fetchLeaderboardData() {
 export async function createUser(userData) {
   const { data, error } = await supabaseClient.from("leaderboard").insert([userData]).select();
   if (error) {
-    console.error("Supabase create error:", error);
   }
   return { data, error };
 }
@@ -52,7 +49,6 @@ export async function updateUser(userId, userData) {
     .eq("id", userId)
     .select();
   if (error) {
-    console.error("Supabase update error:", error);
   }
   return { data, error };
 }
@@ -69,7 +65,6 @@ export async function getUserProfile(userId) {
     .eq("user_id", userId)
     .single();
   if (error) {
-    console.error("Error fetching user profile:", error);
     return null;
   }
   return data;
@@ -82,7 +77,6 @@ export async function getCurrentSession() {
     } = await supabaseClient.auth.getSession();
     return session;
   } catch (error) {
-    console.error("Error getting session:", error);
     return null;
   }
 }

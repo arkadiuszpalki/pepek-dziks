@@ -40,7 +40,6 @@ export function setupAuthListeners(elements) {
           loginDialog.showModal();
         }
       } else {
-        console.error("Dialog logowania nie znaleziony!");
       }
     });
   }
@@ -48,7 +47,6 @@ export function setupAuthListeners(elements) {
   if (elements.authElements.confirmLoginButton) {
     elements.authElements.confirmLoginButton.addEventListener("click", async () => {
       if (!elements.authElements.emailInput || !elements.authElements.passwordInput) {
-        console.error("Email or Password input not found in login dialog.");
         return;
       }
 
@@ -56,7 +54,6 @@ export function setupAuthListeners(elements) {
       const password = elements.authElements.passwordInput.value;
 
       if (!email || !password) {
-        console.error("Proszę podać email i hasło w dialogu.");
         return;
       }
 
@@ -84,7 +81,6 @@ export function setupAuthListeners(elements) {
         elements.authElements.emailInput.value = "";
         elements.authElements.passwordInput.value = "";
       } catch (error) {
-        console.error("Login error:", error);
       } finally {
         elements.authElements.confirmLoginButton.disabled = false;
         if (elements.authElements.confirmLoginButton.querySelector(".button_label")) {
@@ -121,7 +117,6 @@ export function setupAuthListeners(elements) {
 
         await updateAuthStateUI(null, elements);
       } catch (error) {
-        console.error("Logout error:", error);
         // W przypadku błędu, również zaktualizuj UI na wylogowane
         await updateAuthStateUI(null, elements);
       } finally {
@@ -136,7 +131,6 @@ export function setupAuthListeners(elements) {
       await updateAuthStateUI(session?.user ?? null, elements);
     })
     .catch((error) => {
-      console.error("Error getting initial session:", error);
       updateAuthStateUI(null, elements);
     });
 

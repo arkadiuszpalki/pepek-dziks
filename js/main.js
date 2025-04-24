@@ -10,24 +10,18 @@ import * as userManagement from "./modules/userManagement.js";
 import * as dialogManager from "./modules/dialog.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // test
   if (!window.gsap || !window.Flip) {
-    console.warn("GSAP or Flip not loaded. Animations will be disabled.");
   }
 
-  // Przeniesienie przycisku add-user do .page_wrap na urządzeniach mobilnych
   const actionAddButton = document.querySelector(".action_add");
   const pageWrap = document.querySelector(".page_wrap");
 
   if (actionAddButton && pageWrap) {
     const moveButtonToPageWrap = () => {
       if (window.innerWidth <= 991) {
-        // Mobile breakpoint
         pageWrap.appendChild(actionAddButton);
       } else {
-        // Jeśli wracamy do desktop, sprawdzamy czy przycisk jest już w .page_wrap
         if (actionAddButton.parentElement === pageWrap) {
-          // Przywracamy do poprzedniej lokalizacji (jeśli trzeba)
           const actionsWrap = document.querySelector(
             ".leaderboard_table-header .leaderboard_actions .actions-wrap"
           );
@@ -38,15 +32,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     };
 
-    moveButtonToPageWrap(); // Wykonaj przy załadowaniu
-    window.addEventListener("resize", moveButtonToPageWrap); // Wykonaj przy zmianie rozmiaru
+    moveButtonToPageWrap();
+    window.addEventListener("resize", moveButtonToPageWrap);
   }
 
   const supabaseClient = api.initializeSupabase();
 
-  // Sprawdź czy mamy działającego klienta Supabase
   if (!supabaseClient) {
-    // Pokaż komunikat o błędzie
     const loadingScreen = document.querySelector("[data-loading-screen]");
     if (loadingScreen) {
       loadingScreen.innerHTML = `
@@ -58,7 +50,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       `;
       loadingScreen.dataset.loadingScreen = "loaded";
     } else {
-      // Jeśli nie ma elementu loadingScreen, dodaj komunikat bezpośrednio do body
       const errorDiv = document.createElement("div");
       errorDiv.className = "error-message";
       errorDiv.style.cssText =
@@ -70,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       `;
       document.body.prepend(errorDiv);
     }
-    return; // Przerwij dalsze wykonanie
+    return;
   }
 
   const state = {
@@ -142,7 +133,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   if (!elements.tableBody || !elements.template) {
-    console.error("Required DOM elements not found.");
     return;
   }
 
@@ -160,7 +150,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const data = await api.fetchLeaderboardData();
 
     if (!Array.isArray(data)) {
-      console.error("Invalid data format received from API");
       return;
     }
 
@@ -228,7 +217,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
 
-      // Kopiuj dane do komponentu [data-table-extras]
       const tableExtras = row.querySelector("[data-table-extras]");
       if (tableExtras) {
         Object.entries(CONFIG.exercises).forEach(([key]) => {
@@ -300,32 +288,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     calculations.updateRankAndMedals(visibleRows);
 
-    console.log("--- main.js: Inicjalizacja sortowania i filtrowania");
     sorting.setupSorting(state, elements);
     filtering.setupFiltering(state, elements);
     auth.setupAuthListeners(elements);
 
-    console.log("--- main.js: Inicjalizacja gestów i dialogów");
-    // Jeśli dialogManager jest dostępny, zainicjalizuj dialogi
     if (dialogManager) {
-      console.log("--- main.js: Wywołanie dialogManager.initializeAllDialogs");
       dialogManager.initializeAllDialogs(elements, setupDialogSwipeGesture);
     }
 
-    // Inicjalizacja interakcji z dialogiem dla userManagement
     if (userManagement) {
-      console.log("--- main.js: Wywołanie userManagement.setupDialogInteractions");
       userManagement.setupDialogInteractions(elements);
     }
 
-    // Bezpośrednia inicjalizacja przycisków w dialogach
     const initializeAllDialogButtons = () => {
-      // Znajdujemy wszystkie dialogi
       const allDialogs = document.querySelectorAll("dialog.dialog");
       allDialogs.forEach((dialog) => {
-        // Sprawdzamy, czy dialog ma już zainicjalizowane przyciski
         if (dialog.hasAttribute("data-buttons-initialized")) {
-          console.log(`Dialog buttons already initialized for:`, dialog);
           return;
         }
 
@@ -333,7 +311,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         buttons.forEach((button) => {
           const action = button.getAttribute("data-button-action");
 
-          // Pomijamy przyciski confirm, które są już obsługiwane przez setupHoldToSaveButton
           if (action === "confirm") {
             console.log(
               `Pomijam konfigurację przycisku ${action} - będzie obsłużony przez userManagement`
@@ -341,14 +318,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
           }
 
-          // Usuwamy istniejące listenery (klonowanie)
           const newButton = button.cloneNode(true);
           button.parentNode.replaceChild(newButton, button);
 
-          // Dodajemy nowy listener
           newButton.addEventListener("click", (e) => {
-            console.log(`Przycisk ${action} kliknięty!`);
-
             if (action === "cancel" || action === "close") {
               dialog.close();
             } else if (action === "login") {
@@ -363,51 +336,39 @@ document.addEventListener("DOMContentLoaded", async () => {
           });
         });
 
-        // Oznaczamy dialog jako zainicjalizowany
         dialog.setAttribute("data-buttons-initialized", "true");
       });
     };
 
-    // Wywołaj inicjalizację przycisków
     initializeAllDialogButtons();
 
-    // Przywracamy inicjalizację przycisku dodawania użytkownika
-    console.log("--- main.js: Wywołanie userManagement.setupAddUserButton");
     userManagement.setupAddUserButton(elements);
 
-    // Funkcja wyłączająca autofocus na urządzeniach mobilnych
     function disableAutofocusOnMobile(dialogElement) {
       if (!dialogElement) return;
 
-      // Sprawdzenie czy urządzenie jest mobilne (zgodnie z breakpointem używanym w kodzie)
       const isMobile = window.innerWidth <= 991;
 
       if (isMobile) {
-        // Znajduje wszystkie pola formularza
         const inputFields = dialogElement.querySelectorAll("input");
 
-        // Ustawia atrybut zapobiegający focusowi
         inputFields.forEach((field) => {
           field.setAttribute("data-prevent-focus", "true");
           field.setAttribute("tabindex", "-1");
 
-          // Przywróć tabindex po pewnym czasie
           setTimeout(() => {
             field.setAttribute("tabindex", "0");
           }, 500);
         });
 
-        // Dodatkowe zabezpieczenie - zapobiega focusowi po otwarciu dialogu
         const preventFocus = () => {
           setTimeout(() => {
-            // Blur aktywnego elementu
             if (document.activeElement && document.activeElement.tagName === "INPUT") {
               document.activeElement.blur();
             }
           }, 50);
         };
 
-        // Nasłuchiwanie na otwarcie dialogu
         dialogElement.addEventListener("showModal", preventFocus);
         dialogElement.addEventListener("open", preventFocus);
       }
@@ -431,8 +392,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (typeof config.ease === "string") {
           state.animations.sort.ease = config.ease;
         }
-
-        console.log("Ustawienia animacji sortowania zaktualizowane:", state.animations.sort);
       },
 
       getEditConfig: () => {
@@ -481,8 +440,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (r.zIndex !== undefined) target.zIndex = r.zIndex;
           if (typeof r.delay === "number") target.delay = Math.max(0, Math.min(5, r.delay));
         }
-
-        console.log("Ustawienia animacji edycji zaktualizowane:", state.animations.edit);
       },
     };
 
@@ -503,7 +460,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       hideLoadingScreen();
     }
   } catch (err) {
-    console.error("Error loading data:", err);
     elements.tableBody.innerHTML =
       '<tr><td colspan="9">Wystąpił błąd podczas ładowania danych. Spróbuj odświeżyć stronę.</td></tr>';
 
@@ -514,38 +470,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Function to handle swipe down to close dialog on mobile
 function setupDialogSwipeGesture(dialogElement, options = {}) {
   if (!dialogElement) return;
 
-  // Default options
   const config = {
-    offset: 20, // Default offset in pixels
+    offset: 20,
     ...options,
   };
 
   let startY = 0;
   let currentY = 0;
   let isDragging = false;
-  const DISMISS_THRESHOLD = 150; // Pixels needed to swipe down to dismiss
-  const MOBILE_BREAKPOINT = 991; // Mobile breakpoint
+  const DISMISS_THRESHOLD = 150;
+  const MOBILE_BREAKPOINT = 991;
 
-  // Find the drag handle element
   const dragHandle = dialogElement.querySelector("[data-dialog-drag]");
 
   if (!dragHandle) {
-    console.warn("No [data-dialog-drag] element found in dialog. Swipe to close will not work.");
     return;
   }
 
   function handleTouchStart(e) {
     if (window.innerWidth > MOBILE_BREAKPOINT) return;
 
-    // Check if the touch is within the drag handle element or within the offset area
     const touch = e.touches[0];
     const handleRect = dragHandle.getBoundingClientRect();
 
-    // Calculate extended area with offset
     const extendedArea = {
       top: handleRect.top - config.offset,
       bottom: handleRect.bottom + config.offset,
@@ -553,7 +503,6 @@ function setupDialogSwipeGesture(dialogElement, options = {}) {
       right: handleRect.right + config.offset,
     };
 
-    // Only start dragging if touch is within the drag handle or offset area
     if (
       touch.clientX >= extendedArea.left &&
       touch.clientX <= extendedArea.right &&
@@ -576,23 +525,18 @@ function setupDialogSwipeGesture(dialogElement, options = {}) {
     currentY = touch.clientY;
     const deltaY = currentY - startY;
 
-    // Only allow dragging down, not up
     if (deltaY < 0) return;
 
-    // Apply transform with translateY and no scale reduction (usunięte skalowanie dialogu)
     const translateY = Math.min(deltaY, DISMISS_THRESHOLD * 1.5);
 
-    // Tylko przesuwamy dialog, bez skalowania
     dialogElement.style.transform = `translateY(${translateY}px)`;
 
-    // Stopniowo zmieniamy skalę elementu [data-table] z 0.95 do 1.0 podczas przeciągania
     const tableElement = document.querySelector("[data-table]");
     if (tableElement) {
-      // Obliczamy skalę od 0.95 do 1.0 w zależności od pozycji przeciągnięcia
       const progress = Math.min(1, deltaY / DISMISS_THRESHOLD);
       const newScale = 0.95 + 0.05 * progress;
       tableElement.style.transform = `scale(${newScale})`;
-      tableElement.style.transition = "none"; // Wyłączamy transition podczas przeciągania
+      tableElement.style.transition = "none";
     }
 
     // If they're dragging down significantly, prevent default to avoid page scroll
@@ -606,61 +550,50 @@ function setupDialogSwipeGesture(dialogElement, options = {}) {
 
     const deltaY = currentY - startY;
 
-    // Reset transition with custom cubic-bezier for a more physical feel with bounce
     dialogElement.style.transition = "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1.25)";
 
     if (deltaY >= DISMISS_THRESHOLD) {
-      // Swipe threshold reached, dismiss the dialog with custom animation
       dialogElement.style.transform = `translateY(${window.innerHeight}px)`;
 
-      // Po przekroczeniu progu, przywracamy pełną skalę tabeli z animacją
       const tableElement = document.querySelector("[data-table]");
       if (tableElement) {
         tableElement.style.transition = "transform 0.3s ease";
         tableElement.style.transform = "scale(1)";
       }
 
-      // After animation completes, hide the dialog properly
       setTimeout(() => {
-        // Close the dialog properly using the native close method
         if (dialogElement.close) {
           dialogElement.close();
         } else if (dialogElement.classList.contains("open")) {
           dialogElement.classList.remove("open");
         }
 
-        // Reset all styles
         dialogElement.style.transform = "";
         dialogElement.style.transition = "";
         dialogElement.style.userSelect = "";
 
-        // Clear any editing user ID that might be set
         if (dialogElement.dataset && dialogElement.dataset.editingUserId) {
           delete dialogElement.dataset.editingUserId;
         }
-      }, 400); // Increased time for the longer animation
+      }, 400);
     } else {
-      // Not enough to dismiss, snap back with bouncy animation
       dialogElement.style.transform = "";
 
-      // Przywracamy skalę tabeli do 0.95, gdy dialog pozostaje otwarty
       const tableElement = document.querySelector("[data-table]");
       if (tableElement) {
         tableElement.style.transition = "transform 0.3s ease";
         tableElement.style.transform = "scale(0.95)";
       }
 
-      // Reset styles after animation
       setTimeout(() => {
         dialogElement.style.transition = "";
         dialogElement.style.userSelect = "";
-      }, 400); // Increased time for the longer animation
+      }, 400);
     }
 
     isDragging = false;
   }
 
-  // Add event listeners to the dialog element
   dialogElement.addEventListener("touchstart", handleTouchStart, { passive: false });
   dialogElement.addEventListener("touchmove", handleTouchMove, { passive: false });
   dialogElement.addEventListener("touchend", handleTouchEnd);

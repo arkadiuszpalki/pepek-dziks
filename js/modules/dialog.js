@@ -95,7 +95,6 @@ export function setupEloInfoDialog(setupDialogSwipeGesture) {
   const eloInfoDialog = document.querySelector("[data-dialog-elo-info]");
 
   if (!eloInfoButton || !eloInfoDialog) {
-    console.error("Nie znaleziono przycisku ELO info lub dialogu ELO info");
     return;
   }
 

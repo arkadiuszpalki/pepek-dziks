@@ -1,5 +1,3 @@
-console.log("userManagement.js loaded");
-
 // User management functions (add, edit, delete)
 import { CONFIG } from "../modules/config.js";
 import * as calculations from "../modules/calculations.js";
@@ -35,7 +33,6 @@ function addValidationStyles() {
 
   // Dodanie stylów do nagłówka strony
   document.head.appendChild(styleElement);
-  console.log("addValidationStyles: Style walidacji dodane");
 }
 
 // Funkcja do blokowania przewijania strony, gdy dialog jest otwarty
@@ -143,18 +140,11 @@ function setupAutoWidthInputs(dialogElement) {
 }
 
 export function setupDialogInteractions(elements) {
-  console.log("setupDialogInteractions: START");
-  console.log("setupDialogInteractions: elements:", elements);
-
   // Znajdź wszystkie dialogi na stronie
   const loginDialog = document.querySelector("[data-dialog-login]");
   const editDialog = document.querySelector("[data-dialog-edit]");
 
-  console.log("setupDialogInteractions: login dialog:", loginDialog);
-  console.log("setupDialogInteractions: edit dialog:", editDialog);
-
   if (!loginDialog && !editDialog) {
-    console.error("setupDialogInteractions: BŁĄD - nie znaleziono żadnego dialogu!");
     return;
   }
 
@@ -168,31 +158,21 @@ export function setupDialogInteractions(elements) {
       input.dataset.originalPlaceholder = input.placeholder;
     });
     editDialog.dataset.placeholdersSaved = "true";
-    console.log("Oryginalne placeholdery zapisane dla dialogu edycji.");
   }
 
   // Funkcja do obsługi konkretnego dialogu
   const setupDialogButtonsAndInteractions = (dialog) => {
     if (!dialog) return;
 
-    console.log(`setupDialogButtonsAndInteractions: Konfiguracja dialogu:`, dialog);
-
     // Oznaczamy dialog, że jest w trakcie inicjalizacji (zapobiegamy podwójnej inicjalizacji)
     dialog.setAttribute("data-initializing", "true");
 
     // Konfiguruj przyciski
     const buttons = dialog.querySelectorAll("[data-button-action]");
-    console.log(
-      `Znaleziono ${buttons.length} przycisków w dialogu:`,
-      Array.from(buttons).map((btn) => `[${btn.getAttribute("data-button-action")}]`)
-    );
 
     // Przyciski anuluj i potwierdź
     const cancelButton = dialog.querySelector('[data-button-action="cancel"]');
     const confirmButton = dialog.querySelector('[data-button-action="confirm"]');
-
-    console.log("cancelButton:", cancelButton);
-    console.log("confirmButton:", confirmButton);
 
     // Usuwamy istniejące listenery przed dodaniem nowych
     if (cancelButton) {
@@ -203,19 +183,15 @@ export function setupDialogInteractions(elements) {
 
       // Dodajemy nowy event listener bezpośrednio, bez klonowania
       cancelButton.addEventListener("click", function (e) {
-        console.log("Przycisk anuluj: Kliknięty!");
         e.stopPropagation(); // Zatrzymujemy propagację, aby zapobiec podwójnemu wywołaniu
         dialog.close();
       });
-
-      console.log("Dodano listener do przycisku anuluj");
     }
 
     if (confirmButton) {
       // Dla przycisku potwierdź, używamy setupHoldToSaveButton
       // Wyczyszczenie istniejących listenerów odbędzie się wewnątrz tej funkcji
       setupHoldToSaveButton(confirmButton, dialog, elements);
-      console.log("Skonfigurowano przycisk potwierdź z hold-to-save");
     }
 
     // Inne przyciski akcji (login, logout, elo-info, itp.)
@@ -232,7 +208,6 @@ export function setupDialogInteractions(elements) {
 
       // Dodajemy nowy listener
       button.addEventListener("click", function (e) {
-        console.log(`Przycisk ${action} kliknięty!`);
         e.stopPropagation(); // Zatrzymujemy propagację
 
         if (action === "login") {
@@ -248,8 +223,6 @@ export function setupDialogInteractions(elements) {
           setupRemoveButton(button, dialog.dataset.editingUserId, dialog, elements);
         }
       });
-
-      console.log(`Dodano listener do przycisku ${action}`);
     });
 
     // Ustawienie walidacji w czasie rzeczywistym
@@ -263,34 +236,20 @@ export function setupDialogInteractions(elements) {
     // Oznaczamy dialog jako zainicjalizowany
     dialog.setAttribute("data-buttons-initialized", "true");
     dialog.removeAttribute("data-initializing");
-
-    console.log(
-      `Dialog ${
-        dialog.hasAttribute("data-dialog-login") ? "logowania" : "edycji"
-      } został w pełni skonfigurowany`
-    );
   };
 
   // Konfiguruj oba dialogi
   if (loginDialog) setupDialogButtonsAndInteractions(loginDialog);
   if (editDialog) setupDialogButtonsAndInteractions(editDialog);
-
-  console.log("setupDialogInteractions: KONIEC");
 }
 
 export function gatherAndSubmitUserData(dialog, elements) {
-  console.log("gatherAndSubmitUserData: START");
-
   if (!dialog) {
-    console.error("gatherAndSubmitUserData: Brak dialogu!");
     return;
   }
 
-  console.log("gatherAndSubmitUserData: Dialog:", dialog);
-
   // Sprawdź czy mamy dialog logowania czy edycji
   const isLoginDialog = dialog.hasAttribute("data-dialog-login");
-  console.log("gatherAndSubmitUserData: Czy to dialog logowania?", isLoginDialog);
 
   if (isLoginDialog) {
     // Obsługa logowania
@@ -298,7 +257,6 @@ export function gatherAndSubmitUserData(dialog, elements) {
     const passwordInput = dialog.querySelector("[data-action-password]");
 
     if (!emailInput || !passwordInput) {
-      console.error("gatherAndSubmitUserData: Brak wymaganych pól w formularzu logowania!");
       return;
     }
 
@@ -306,8 +264,6 @@ export function gatherAndSubmitUserData(dialog, elements) {
     const password = passwordInput.value.trim();
 
     if (!email || !password) {
-      console.error("gatherAndSubmitUserData: Brak email lub hasła!");
-
       if (!email) emailInput.classList.add("is-invalid");
       if (!password) passwordInput.classList.add("is-invalid");
 
@@ -315,27 +271,23 @@ export function gatherAndSubmitUserData(dialog, elements) {
     }
 
     // Wykonaj logowanie
-    console.log("gatherAndSubmitUserData: Próba logowania dla email:", email);
+
     try {
       auth.signIn(email, password, elements);
       // Po udanym logowaniu zamknij dialog
       setTimeout(() => {
         dialog.close();
       }, 500);
-    } catch (error) {
-      console.error("Błąd podczas logowania:", error);
-    }
+    } catch (error) {}
     return;
   }
 
   // Poniżej kod dla dialogu edycji użytkownika
   const userId = dialog.dataset.editingUserId;
-  console.log("gatherAndSubmitUserData: ID edytowanego użytkownika:", userId);
 
   // Pobierz logikę walidacji dla tego dialogu
   const validation = setupValidationLogic(dialog);
   if (!validation) {
-    console.error("gatherAndSubmitUserData: Nie udało się zainicjować logiki walidacji.");
     return;
   }
 
@@ -353,7 +305,6 @@ export function gatherAndSubmitUserData(dialog, elements) {
   }
 
   if (!isValid) {
-    console.error("gatherAndSubmitUserData: Formularz zawiera błędy!", errors);
     return; // Zatrzymaj, jeśli są błędy
   }
 
@@ -396,9 +347,6 @@ export function gatherAndSubmitUserData(dialog, elements) {
     }
   });
 
-  console.log("gatherAndSubmitUserData: Zebrane dane:", userData);
-  console.log("gatherAndSubmitUserData: Klucze obiektu userData:", Object.keys(userData));
-
   // Wyślij dane do bazy
   submitToSupabase(userId, userData, dialog, elements);
 }
@@ -413,9 +361,6 @@ export async function submitToSupabase(userId, userData, dialog, elements) {
     sanitizedUserData[key.replace(/-/g, "_")] = value;
   }
 
-  console.log("submitToSupabase: Dane po czyszczeniu:", sanitizedUserData);
-  console.log("submitToSupabase: Klucze po czyszczeniu:", Object.keys(sanitizedUserData));
-
   let result;
   let updatedRecordId = null;
   let shouldCloseDialog = true;
@@ -427,7 +372,6 @@ export async function submitToSupabase(userId, userData, dialog, elements) {
         updatedRecordId = result.data[0].id;
         updateTableRow(userId, result.data[0], elements);
       } else if (!result.error) {
-        console.warn("User update successful but RLS might have prevented reading data back.");
         updatedRecordId = userId;
       }
     } else {
@@ -436,24 +380,19 @@ export async function submitToSupabase(userId, userData, dialog, elements) {
         updatedRecordId = result.data[0].id;
         addTableRow(result.data[0], elements);
       } else if (!result.error) {
-        console.warn("User creation successful but RLS might have prevented reading data back.");
       }
     }
 
     if (result.error) {
-      console.error(`Błąd zapisu danych: ${result.error.message}`);
       if (result.error.details) {
-        console.error("Szczegóły błędu:", result.error.details);
       }
       if (result.error.hint) {
-        console.error("Wskazówka:", result.error.hint);
       }
       shouldCloseDialog = false;
     } else {
       refreshTableCalculations(updatedRecordId, elements);
     }
   } catch (err) {
-    console.error("Network or unexpected error during submission:", err);
     shouldCloseDialog = false;
   } finally {
     if (confirmButton) confirmButton.disabled = false;
@@ -615,7 +554,6 @@ export function refreshTableCalculations(highlightUserId, elements) {
             },
           });
         } catch (error) {
-          console.error("Błąd animacji FLIP:", error);
           // Fallback
           sortedRows.forEach((row) => elements.tableBody.appendChild(row));
           elements.functions.updateRankAndMedals(sortedRows);
@@ -727,6 +665,17 @@ export function addTableRow(user, elements) {
 
   row.addEventListener("click", () => openEditDialog(user.id, elements));
 
+  // Check mobile view mode and hide extras if needed
+  const isMobile = window.innerWidth <= 991;
+  const currentMode = localStorage.getItem("dziks_view_mode") || "default";
+
+  if (isMobile && currentMode === "default") {
+    const tableExtras = row.querySelector("[data-table-extras]");
+    if (tableExtras) {
+      tableExtras.style.display = "none";
+    }
+  }
+
   elements.tableBody.appendChild(row);
 }
 
@@ -775,14 +724,9 @@ export function updateTableRow(userId, user, elements) {
 }
 
 export function openEditDialog(userId = null, elements) {
-  console.log("openEditDialog: START, userId =", userId);
-  console.log("openEditDialog: elements =", elements);
-
   const editDialog = elements.authElements.editDialog || elements.authElements.theDialog;
-  console.log("openEditDialog: dialog =", editDialog);
 
   if (!editDialog) {
-    console.error("Nie znaleziono dialogu edycji");
     return;
   }
 
@@ -882,18 +826,24 @@ export function openEditDialog(userId = null, elements) {
       };
 
       // Usuń stary listener, jeśli istniał
-      sexToggleElement.removeEventListener("click", () => {});
+      const existingClickListener = sexToggleElement.__clickListener;
+      if (existingClickListener) {
+        sexToggleElement.removeEventListener("click", existingClickListener);
+      }
 
       // Dodaj nowy listener do całego kontenera
-      sexToggleElement.addEventListener("click", () => {
+      const newClickListener = () => {
         const currentValue = sexToggleElement.dataset.selectedValue || "M";
         const newValue = currentValue === "M" ? "K" : "M";
         updateSwitcherState(newValue);
-      });
+      };
+      sexToggleElement.addEventListener("click", newClickListener);
+      sexToggleElement.__clickListener = newClickListener;
 
       // Ustaw stan początkowy na podstawie danych z wiersza tabeli
-      const initialSex = sexValue; // Używamy sexValue pobranego wcześniej
+      const initialSex = sexValue;
       updateSwitcherState(initialSex);
+    } else {
     }
 
     const weightValue = row.querySelector("[data-user-weight]")?.dataset.value || "";
@@ -963,18 +913,24 @@ export function openEditDialog(userId = null, elements) {
       };
 
       // Usuń stary listener, jeśli istniał
-      sexToggleElement.removeEventListener("click", () => {});
+      const existingClickListener = sexToggleElement.__clickListener;
+      if (existingClickListener) {
+        sexToggleElement.removeEventListener("click", existingClickListener);
+      }
 
       // Dodaj nowy listener do całego kontenera
-      sexToggleElement.addEventListener("click", () => {
+      const newClickListener = () => {
         const currentValue = sexToggleElement.dataset.selectedValue || "M";
         const newValue = currentValue === "M" ? "K" : "M";
         updateSwitcherState(newValue);
-      });
+      };
+      sexToggleElement.addEventListener("click", newClickListener);
+      sexToggleElement.__clickListener = newClickListener;
 
       // Ustaw stan początkowy
       const initialSex = "M";
       updateSwitcherState(initialSex);
+    } else {
     }
   }
 
@@ -1033,7 +989,7 @@ export function openEditDialog(userId = null, elements) {
 export function setupRemoveButton(button, userId, dialog, elements) {
   let pressTimer;
   let progressAnimation;
-  const holdDuration = 3000;
+  const holdDuration = 1500;
   const progressBar = document.createElement("div");
 
   progressBar.style.position = "absolute";
@@ -1079,9 +1035,7 @@ export function setupRemoveButton(button, userId, dialog, elements) {
       auth.updateTableRowStyles(elements);
 
       refreshTableCalculations(null, elements);
-    } catch (err) {
-      console.error("Błąd podczas usuwania użytkownika:", err);
-    }
+    } catch (err) {}
   };
 
   const handleStart = () => {
@@ -1134,267 +1088,82 @@ export function setupAddUserButton(elements) {
             }
           }, 50);
         }
-      } catch (error) {
-        console.error("Błąd podczas sprawdzania sesji przy dodawaniu:", error);
-      }
+      } catch (error) {}
     });
   }
 }
 
 export function setupHoldToSaveButton(button, dialog, elements) {
-  console.log("setupHoldToSaveButton: START dla przycisku:", button);
-
   if (!button) {
-    console.error("setupHoldToSaveButton: Nieprawidłowy przycisk", button);
     return;
   }
 
-  // Usuwamy klonowanie przycisku, które powodowało utratę listenerów zdarzeń
-  // Zamiast klonowania, korzystamy z oryginalnego elementu
-  const holdButton = button;
+  const saveButton = button; // Zmieniono nazwę dla jasności
+  const originalText = saveButton.querySelector(".button_label")?.textContent || "Zapisz";
 
-  console.log("setupHoldToSaveButton: Używamy oryginalnego przycisku");
-
-  const originalText = holdButton.querySelector(".button_label")?.textContent || "";
-  console.log("setupHoldToSaveButton: Oryginalny tekst przycisku:", originalText);
-
-  // Sprawdzamy, czy jesteśmy na urządzeniu mobilnym
-  const isMobile = window.innerWidth <= 768;
-
-  // Tworzymy pasek postępu tylko dla urządzeń mobilnych
-  let progressBar = holdButton.querySelector(".hold-progress");
-  if (isMobile) {
-    if (!progressBar) {
-      progressBar = document.createElement("div");
-      progressBar.className = "hold-progress";
-      progressBar.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        height: 3px;
-        width: 0%;
-        background-color: var(--_colors---brand, #FFCB16);
-        transition: width 0.1s linear;
-        z-index: 2;
-      `;
-      holdButton.appendChild(progressBar);
-      console.log("setupHoldToSaveButton: Dodano pasek postępu");
-    }
-  } else if (progressBar) {
-    // Usuwamy pasek postępu na desktopie jeśli istnieje
-    progressBar.remove();
-  }
-
-  // Używamy zmiennych do przechowywania stanu
-  let progressInterval;
-  let isHolding = false;
-  let holdStartTime;
-  let touchStartX, touchStartY;
-  let moveThreshold = 10; // px
-  let hasMoved = false;
-  let holdDuration = 1000; // 1000ms tylko dla mobile
-
-  const resetButton = () => {
-    console.log("resetButton: Resetowanie stanu przycisku");
-    isHolding = false;
-    if (progressInterval) {
-      clearInterval(progressInterval);
-      progressInterval = null;
-    }
-
-    if (progressBar) {
-      progressBar.style.width = "0%";
-    }
-
-    // Przywracamy oryginalny tekst
-    const buttonLabel = holdButton.querySelector(".button_label");
+  // Funkcja do resetowania stanu przycisku (głównie tekstu)
+  const resetButtonState = () => {
+    const buttonLabel = saveButton.querySelector(".button_label");
     if (buttonLabel) {
       buttonLabel.textContent = originalText;
     }
-
-    // Usuwamy dodatkowe klasy
-    holdButton.classList.remove("is-saving", "is-success", "is-error");
+    // Można tu dodać usuwanie klas, jeśli jakieś były dodawane w procesie zapisu
+    saveButton.classList.remove("is-saving", "is-success", "is-error");
   };
 
-  const startProgress = (startTime) => {
-    if (!isMobile) return; // Nie uruchamiamy na desktopie
-
-    const animate = () => {
-      if (!isHolding) return;
-
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min((elapsed / holdDuration) * 100, 100);
-
-      if (progressBar) {
-        progressBar.style.width = `${progress}%`;
-      }
-
-      if (progress >= 100) {
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-        saveUser();
-      }
-    };
-
-    progressInterval = setInterval(animate, 10);
-  };
-
-  const saveUser = () => {
-    // Zamiast gromadzić dane bezpośrednio tutaj, wywołujemy funkcję, która to zrobi
-    console.log("saveUser: Rozpoczynam procedurę zapisu danych");
-
-    // Upewnijmy się, że dialog i elements są dostępne
-    if (!dialog) {
-      console.error("saveUser: Brak referencji do dialogu!");
-      return;
-    }
-
-    if (!elements) {
-      console.error("saveUser: Brak referencji do elements!");
-      return;
-    }
-
-    // Bezpośrednie wywołanie funkcji - blokujemy event propagation
-    try {
-      gatherAndSubmitUserData(dialog, elements);
-      console.log("saveUser: Wywołano gatherAndSubmitUserData");
-    } catch (error) {
-      console.error("saveUser: Błąd podczas przetwarzania danych:", error);
-    }
-  };
-
-  const handleStart = (e) => {
-    // Obsługa tylko dla urządzeń mobilnych
-    if (!isMobile) return;
-
-    // Obsługa zarówno dotyku, jak i myszy
-    if (e.type === "touchstart") {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-    }
-
-    holdStartTime = Date.now();
-    isHolding = true;
-    hasMoved = false;
-
-    startProgress(holdStartTime);
-  };
-
-  const handleMove = (e) => {
-    if (!isHolding || !isMobile) return;
-
-    // Sprawdzamy tylko dla zdarzeń dotykowych
-    if (e.type === "touchmove") {
-      const touchX = e.touches[0].clientX;
-      const touchY = e.touches[0].clientY;
-
-      // Sprawdzamy, czy użytkownik przesunął palec wystarczająco daleko
-      const deltaX = Math.abs(touchX - touchStartX);
-      const deltaY = Math.abs(touchY - touchStartY);
-
-      if (deltaX > moveThreshold || deltaY > moveThreshold) {
-        hasMoved = true;
-        resetButton();
-      }
-    }
-  };
-
-  const handleEnd = () => {
-    // Tylko dla urządzeń mobilnych
-    if (!isMobile) return;
-
-    // Sprawdzamy, czy użytkownik nie przesunął palca/kursora zbyt daleko
-    if (isHolding && !hasMoved) {
-      // Obliczamy, ile czasu minęło od rozpoczęcia przytrzymania
-      const elapsed = Date.now() - holdStartTime;
-
-      // Jeśli minęło wystarczająco dużo czasu, zapisujemy
-      if (elapsed >= holdDuration) {
-        saveUser();
-      }
-    }
-
-    resetButton();
-  };
-
-  // Dodajemy delegowany handler dla kliknięcia, który nie usuwa innych listenerów
+  // Funkcja wywoływana przy kliknięciu
   const handleClick = (e) => {
-    console.log("Przycisk potwierdź: Kliknięty!", e.type);
+    e.preventDefault();
+    e.stopPropagation();
 
-    // Sprawdźmy, czy to przycisk logowania
-    const isLoginButton =
-      dialog.hasAttribute("data-dialog-login") && holdButton.closest("[data-dialog-login]");
-
-    // Na desktopie natychmiast zapisujemy
-    if (!isMobile || isLoginButton) {
-      console.log("Natychmiastowa akcja - desktop lub przycisk logowania");
-      saveUser();
+    // Bezpośrednio próbujemy zapisać dane
+    if (!dialog || !elements) {
       return;
     }
+    try {
+      // Oznacz przycisk jako "zapisywanie" (opcjonalnie)
+      saveButton.classList.add("is-saving");
+      const buttonLabel = saveButton.querySelector(".button_label");
+      if (buttonLabel) buttonLabel.textContent = "Zapisywanie...";
 
-    // Dla kliknięć na urządzeniach mobilnych (krótszych niż 250ms) wykonujemy akcję natychmiast
-    if (isMobile && Date.now() - holdStartTime < 250) {
-      saveUser();
-      resetButton();
+      // Wywołaj funkcję zapisu
+      gatherAndSubmitUserData(dialog, elements);
+
+      // Reset stanu nastąpi wewnątrz gatherAndSubmitUserData lub po jego zakończeniu
+      // Tutaj możemy tylko zresetować po krótkim czasie na wszelki wypadek, jeśli gatherAndSubmitUserData nie zamknie dialogu
+      setTimeout(() => {
+        // Sprawdź, czy dialog jest nadal otwarty, zanim zresetujesz
+        if (dialog.open) {
+          resetButtonState();
+        }
+      }, 1000); // Krótki czas oczekiwania
+    } catch (error) {
+      // W razie błędu również resetuj stan
+      resetButtonState();
     }
   };
 
-  // Usuwamy istniejące nasłuchiwacze przed dodaniem nowych, aby uniknąć duplikacji
-  holdButton.removeEventListener("mousedown", handleStart);
-  holdButton.removeEventListener("touchstart", handleStart);
-  holdButton.removeEventListener("mousemove", handleMove);
-  holdButton.removeEventListener("touchmove", handleMove);
-  holdButton.removeEventListener("mouseup", handleEnd);
-  holdButton.removeEventListener("touchend", handleEnd);
-  holdButton.removeEventListener("mouseleave", handleEnd);
-  holdButton.removeEventListener("click", handleClick);
+  // Usuwamy stary listener 'click', jeśli istniał
+  // Trudno jest usunąć anonimowe listenery, więc polegamy na tym, że nie dublujemy
+  // Lub upewniamy się, że ta funkcja setup jest wołana tylko raz dla przycisku
+  // Ewentualnie, przed dodaniem, można sklonować przycisk bez listenerów
+  // const clonedButton = saveButton.cloneNode(true);
+  // saveButton.parentNode.replaceChild(clonedButton, saveButton);
+  // saveButton = clonedButton; // Używaj klona dalej
 
-  // Dodajemy nowe nasłuchiwacze - dla mobilnej wersji
-  if (isMobile) {
-    holdButton.addEventListener("mousedown", handleStart);
-    holdButton.addEventListener("touchstart", handleStart, { passive: true });
-    holdButton.addEventListener("mousemove", handleMove);
-    holdButton.addEventListener("touchmove", handleMove, { passive: true });
-    holdButton.addEventListener("mouseup", handleEnd);
-    holdButton.addEventListener("touchend", handleEnd);
-    holdButton.addEventListener("mouseleave", handleEnd);
-  }
+  // Dodajemy nowy, prosty listener click
+  saveButton.removeEventListener("click", handleClick); // Spróbuj usunąć, jeśli był już dodany
+  saveButton.addEventListener("click", handleClick);
 
-  // Zawsze dodajemy listener click dla desktopa i mobilnych
-  holdButton.addEventListener("click", handleClick);
-
-  console.log("setupHoldToSaveButton: Dodano listener click");
-
-  // Funkcja aktualizacji oparta na rozmiarze ekranu
-  const updateBasedOnScreenSize = () => {
-    const wasDesktop = !isMobile;
-    const newIsMobile = window.innerWidth <= 768;
-
-    // Jeśli zmienił się tryb (desktop <-> mobile)
-    if (wasDesktop !== !newIsMobile) {
-      // Odświeżamy setup przycisku
-      resetButton();
-      setupHoldToSaveButton(button, dialog, elements);
-    }
-  };
-
-  // Nasłuchiwacz zmiany rozmiaru ekranu
-  window.removeEventListener("resize", updateBasedOnScreenSize);
-  window.addEventListener("resize", updateBasedOnScreenSize);
-
-  // Resetuj przycisk przy zamknięciu dialogu
+  // Resetuj stan przycisku przy zamknięciu dialogu
   const closeListener = () => {
-    resetButton();
+    resetButtonState();
   };
 
-  // Usuń stary listener i dodaj nowy
   dialog.removeEventListener("close", closeListener);
   dialog.addEventListener("close", closeListener);
 
-  console.log("setupHoldToSaveButton: KONIEC, tryb:", isMobile ? "mobilny" : "desktop");
-  return holdButton;
+  return saveButton;
 }
 
 // Funkcja do walidacji pól (bez modyfikacji DOM)
@@ -1444,6 +1213,5 @@ function setupLiveValidation(dialog) {
   // Można tu zostawić ewentualne inne konfiguracje walidacji, jeśli będą potrzebne,
   // ale usuwamy logikę live validation (event listenery input/change/blur)
   // i bezpośrednie dodawanie/usuwanie klas is-invalid.
-  console.log("SetupLiveValidation: Konfiguracja walidacji (bez live).");
   // Wcześniejszy kod listenerów i modyfikacji DOM został usunięty.
 }
