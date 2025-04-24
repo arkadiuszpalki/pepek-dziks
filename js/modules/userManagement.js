@@ -1215,3 +1215,11 @@ function setupLiveValidation(dialog) {
   // i bezpośrednie dodawanie/usuwanie klas is-invalid.
   // Wcześniejszy kod listenerów i modyfikacji DOM został usunięty.
 }
+
+// Set numeric input mode for specific inputs
+const numericInputs = document.querySelectorAll(
+  "input[data-action-input-max-reps], input[data-action-input-one-rep]"
+);
+numericInputs.forEach((input) => {
+  input.setAttribute("inputmode", "numeric");
+});
