@@ -37,9 +37,5 @@ function getSupabaseKey() {
   if (window.__env__ && window.__env__.SUPABASE_KEY) {
     return window.__env__.SUPABASE_KEY;
   }
-
-  console.error(
-    "Brak klucza Supabase. Dodaj element z atrybutem data-supabase-key lub skonfiguruj window.__env__"
-  );
   return null; // Aplikacja nie zadziała bez klucza
 }

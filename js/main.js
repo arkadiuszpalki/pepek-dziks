@@ -312,9 +312,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           const action = button.getAttribute("data-button-action");
 
           if (action === "confirm") {
-            console.log(
-              `Pomijam konfigurację przycisku ${action} - będzie obsłużony przez userManagement`
-            );
             return;
           }
 
