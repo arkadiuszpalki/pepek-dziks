@@ -802,6 +802,7 @@ export function openEditDialog(userId = null, elements) {
 
   // Zaktualizuj wartości w formularzu tylko jeśli edytujemy istniejącego użytkownika
   if (userId) {
+    console.log(`[openEditDialog] Edycja użytkownika: ${userId}`);
     const row = elements.tableBody.querySelector(`.table_row[data-user-id="${userId}"]`);
     if (!row) {
       return;
