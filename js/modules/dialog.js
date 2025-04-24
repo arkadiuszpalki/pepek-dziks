@@ -121,21 +121,7 @@ export function setupEloInfoDialog(setupDialogSwipeGesture) {
     openDialog(eloInfoDialog);
   });
 
-  const closeButton =
-    eloInfoDialog.querySelector('[data-button-action="close"]') ||
-    eloInfoDialog.querySelector("#elo-info-close") ||
-    eloInfoDialog.querySelector('[data-button-action="elo-info-close"]');
-
-  if (closeButton) {
-    closeButton.addEventListener("click", () => {
-      closeDialog(eloInfoDialog);
-    });
-  } else {
-    console.warn(
-      "Brak przycisku zamknięcia w dialogu ELO info. Dodaj przycisk z atrybutem data-button-action='close', data-button-action='elo-info-close' lub id='elo-info-close'"
-    );
-  }
-
+  // Obsługa zamykania dialogu przez przyciski (jeśli istnieją)
   const allCloseButtons = eloInfoDialog.querySelectorAll(
     '[data-button-action="elo-info-close"], [data-button-action="close"]'
   );

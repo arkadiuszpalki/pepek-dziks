@@ -1,5 +1,8 @@
+console.log("userManagement.js loaded");
+
 // User management functions (add, edit, delete)
-import { CONFIG } from "./config.js";
+import { CONFIG } from "../modules/config.js";
+import * as calculations from "../modules/calculations.js";
 import * as api from "./api.js";
 import * as auth from "./auth.js";
 import { displayValue } from "../utils/formatters.js";
@@ -32,6 +35,7 @@ function addValidationStyles() {
 
   // Dodanie stylów do nagłówka strony
   document.head.appendChild(styleElement);
+  console.log("addValidationStyles: Style walidacji dodane");
 }
 
 // Funkcja do blokowania przewijania strony, gdy dialog jest otwarty
@@ -139,290 +143,278 @@ function setupAutoWidthInputs(dialogElement) {
 }
 
 export function setupDialogInteractions(elements) {
-  const dialog = elements.authElements.theDialog;
-  if (!dialog) {
+  console.log("setupDialogInteractions: START");
+  console.log("setupDialogInteractions: elements:", elements);
+
+  // Znajdź wszystkie dialogi na stronie
+  const loginDialog = document.querySelector("[data-dialog-login]");
+  const editDialog = document.querySelector("[data-dialog-edit]");
+
+  console.log("setupDialogInteractions: login dialog:", loginDialog);
+  console.log("setupDialogInteractions: edit dialog:", editDialog);
+
+  if (!loginDialog && !editDialog) {
+    console.error("setupDialogInteractions: BŁĄD - nie znaleziono żadnego dialogu!");
     return;
   }
 
   // Dodaj style walidacji
   addValidationStyles();
 
-  // Ustawienie walidacji w czasie rzeczywistym
-  setupLiveValidation(dialog);
+  // Zapisz oryginalne placeholdery przy pierwszym ładowaniu dialogu edycji
+  if (editDialog && !editDialog.dataset.placeholdersSaved) {
+    const inputs = editDialog.querySelectorAll("input[placeholder]");
+    inputs.forEach((input) => {
+      input.dataset.originalPlaceholder = input.placeholder;
+    });
+    editDialog.dataset.placeholdersSaved = "true";
+    console.log("Oryginalne placeholdery zapisane dla dialogu edycji.");
+  }
 
-  // Zapisz oryginalne placeholdery wszystkich inputów
-  const allInputs = dialog.querySelectorAll('input[type="text"], input:not([type])');
-  allInputs.forEach((input) => {
-    if (input.placeholder) {
-      input.setAttribute("data-original-placeholder", input.placeholder);
-    }
-  });
+  // Funkcja do obsługi konkretnego dialogu
+  const setupDialogButtonsAndInteractions = (dialog) => {
+    if (!dialog) return;
 
-  // Funkcja do resetowania i ponownej inicjalizacji przycisków w dialogu
-  const resetDialogButtons = () => {
-    const cancelButton = dialog.querySelector('[data-dialog-edit] [data-button-action="cancel"]');
-    const confirmButton = dialog.querySelector('[data-dialog-edit] [data-button-action="confirm"]');
+    console.log(`setupDialogButtonsAndInteractions: Konfiguracja dialogu:`, dialog);
 
-    // Usuń istniejące listenery z przycisków
+    // Oznaczamy dialog, że jest w trakcie inicjalizacji (zapobiegamy podwójnej inicjalizacji)
+    dialog.setAttribute("data-initializing", "true");
+
+    // Konfiguruj przyciski
+    const buttons = dialog.querySelectorAll("[data-button-action]");
+    console.log(
+      `Znaleziono ${buttons.length} przycisków w dialogu:`,
+      Array.from(buttons).map((btn) => `[${btn.getAttribute("data-button-action")}]`)
+    );
+
+    // Przyciski anuluj i potwierdź
+    const cancelButton = dialog.querySelector('[data-button-action="cancel"]');
+    const confirmButton = dialog.querySelector('[data-button-action="confirm"]');
+
+    console.log("cancelButton:", cancelButton);
+    console.log("confirmButton:", confirmButton);
+
+    // Usuwamy istniejące listenery przed dodaniem nowych
     if (cancelButton) {
-      const newCancelButton = cancelButton.cloneNode(true);
-      cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
-
-      // Dodaj nowy listener do przycisku anulowania
-      newCancelButton.addEventListener("click", () => {
+      // Usuwamy poprzedni event listener
+      cancelButton.removeEventListener("click", function () {
         dialog.close();
-        delete dialog.dataset.editingUserId;
-        auth.updateTableRowStyles(elements);
       });
+
+      // Dodajemy nowy event listener bezpośrednio, bez klonowania
+      cancelButton.addEventListener("click", function (e) {
+        console.log("Przycisk anuluj: Kliknięty!");
+        e.stopPropagation(); // Zatrzymujemy propagację, aby zapobiec podwójnemu wywołaniu
+        dialog.close();
+      });
+
+      console.log("Dodano listener do przycisku anuluj");
     }
 
     if (confirmButton) {
+      // Dla przycisku potwierdź, używamy setupHoldToSaveButton
+      // Wyczyszczenie istniejących listenerów odbędzie się wewnątrz tej funkcji
       setupHoldToSaveButton(confirmButton, dialog, elements);
+      console.log("Skonfigurowano przycisk potwierdź z hold-to-save");
     }
-  };
 
-  // Blokuj scroll strony, gdy dialog jest otwarty
-  dialog.addEventListener("close", () => {
-    toggleBodyScroll(false);
+    // Inne przyciski akcji (login, logout, elo-info, itp.)
+    buttons.forEach((button) => {
+      const action = button.getAttribute("data-button-action");
 
-    // Po zamknięciu dialogu, resetuj wszystkie inputy
-    setTimeout(() => {
-      // Resetuj pola wejściowe
-      const allInputs = dialog.querySelectorAll('input[type="text"], input:not([type])');
-      allInputs.forEach((input) => {
-        input.value = "";
-        // Przywróć oryginalny placeholder, jeśli został zapisany
-        if (input.hasAttribute("data-original-placeholder")) {
-          input.placeholder = input.getAttribute("data-original-placeholder");
+      // Pomijamy już skonfigurowane przyciski (cancel i confirm)
+      if (action === "cancel" || action === "confirm") {
+        return;
+      }
+
+      // Usuwamy istniejące listenery
+      button.removeEventListener("click", function () {});
+
+      // Dodajemy nowy listener
+      button.addEventListener("click", function (e) {
+        console.log(`Przycisk ${action} kliknięty!`);
+        e.stopPropagation(); // Zatrzymujemy propagację
+
+        if (action === "login") {
+          const loginDialog = document.querySelector("[data-dialog-login]");
+          if (loginDialog) loginDialog.showModal();
+        } else if (action === "logout") {
+          auth.signOut(elements);
+        } else if (action === "elo-info") {
+          const eloInfoDialog = document.querySelector("[data-dialog-elo-info]");
+          if (eloInfoDialog) eloInfoDialog.showModal();
+        } else if (action === "remove-user") {
+          // Dla przycisku usuwania użytkownika mamy specjalną funkcję
+          setupRemoveButton(button, dialog.dataset.editingUserId, dialog, elements);
         }
       });
-    }, 100);
-  });
 
-  dialog.addEventListener("showModal", () => {
-    toggleBodyScroll(true);
-    // Przy każdym otwarciu dialogu resetuj i ponownie inicjalizuj przyciski
-    resetDialogButtons();
-  });
-
-  // Alternatywne nasłuchiwanie otwarcia dialogu
-  const originalShowModal = dialog.showModal;
-  dialog.showModal = function () {
-    originalShowModal.apply(this, arguments);
-    toggleBodyScroll(true);
-    // Przy każdym otwarciu dialogu resetuj i ponownie inicjalizuj przyciski
-    resetDialogButtons();
-  };
-
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) {
-      dialog.close();
-      delete dialog.dataset.editingUserId;
-      auth.updateTableRowStyles(elements);
-    }
-  });
-
-  const inputWrappers = dialog.querySelectorAll(
-    "[data-action-input], [data-action-input-max-reps], [data-action-input-one-rep]"
-  );
-
-  inputWrappers.forEach((wrapper) => {
-    if (wrapper.dataset.actionInput === "sex") return;
-
-    const input = wrapper.querySelector("input");
-
-    if (input) {
-      // Dla inputów typu number na urządzeniach mobilnych
-      const isNumericInput =
-        wrapper.hasAttribute("data-action-input-max-reps") ||
-        wrapper.hasAttribute("data-action-input-one-rep") ||
-        wrapper.dataset.actionInput === "weight";
-
-      if (isNumericInput) {
-        input.setAttribute("inputmode", "numeric");
-        input.setAttribute("pattern", "[0-9]*");
-
-        // Sprawdź, czy jest na urządzeniu mobilnym - wyłącz autofocus
-        if (window.innerWidth <= 991) {
-          // Zapobiegaj autofocusowi
-          input.addEventListener(
-            "focus",
-            function (e) {
-              setTimeout(() => {
-                if (input.hasAttribute("data-prevent-focus")) {
-                  input.blur();
-                }
-              }, 10);
-            },
-            { once: true }
-          );
-        }
-
-        // Filtruj znaki niebędące cyframi
-        input.addEventListener("input", (event) => {
-          const value = event.target.value;
-          const digitsOnly = value.replace(/\D/g, "");
-
-          if (value !== digitsOnly) {
-            event.target.value = digitsOnly;
-          }
-        });
-      }
-    }
-  });
-
-  const sexToggle = dialog.querySelector('[data-action-input="sex"]');
-  if (sexToggle) {
-    const switcher = sexToggle.querySelector("[data-action-input-switcher]");
-
-    const updateSwitcher = (selectedValue) => {
-      if (switcher) {
-        switcher.style.transform = selectedValue === "K" ? "translateX(50%)" : "translateX(-50%)";
-      }
-      sexToggle.dataset.selectedValue = selectedValue;
-    };
-
-    sexToggle.addEventListener("click", () => {
-      const currentValue = sexToggle.dataset.selectedValue || "M";
-      const newValue = currentValue === "M" ? "K" : "M";
-      updateSwitcher(newValue);
+      console.log(`Dodano listener do przycisku ${action}`);
     });
 
-    const initialSex = sexToggle.dataset.selectedValue || "M";
-    updateSwitcher(initialSex);
-  }
+    // Ustawienie walidacji w czasie rzeczywistym
+    setupLiveValidation(dialog);
 
-  // Na końcu funkcji resetujemy przyciski, aby były gotowe do pierwszego użycia
-  resetDialogButtons();
+    // Dodajemy obsługę auto-szerokości tylko dla dialogu edycji
+    if (dialog === editDialog) {
+      setupAutoWidthInputs(dialog);
+    }
+
+    // Oznaczamy dialog jako zainicjalizowany
+    dialog.setAttribute("data-buttons-initialized", "true");
+    dialog.removeAttribute("data-initializing");
+
+    console.log(
+      `Dialog ${
+        dialog.hasAttribute("data-dialog-login") ? "logowania" : "edycji"
+      } został w pełni skonfigurowany`
+    );
+  };
+
+  // Konfiguruj oba dialogi
+  if (loginDialog) setupDialogButtonsAndInteractions(loginDialog);
+  if (editDialog) setupDialogButtonsAndInteractions(editDialog);
+
+  console.log("setupDialogInteractions: KONIEC");
 }
 
 export function gatherAndSubmitUserData(dialog, elements) {
-  const userData = {};
+  console.log("gatherAndSubmitUserData: START");
 
-  // Sprawdź, czy możemy użyć naszego mechanizmu walidacji
-  if (dialog.validateAllFields) {
-    const isValid = dialog.validateAllFields();
-    if (!isValid) {
-      console.error("Form validation failed.");
+  if (!dialog) {
+    console.error("gatherAndSubmitUserData: Brak dialogu!");
+    return;
+  }
+
+  console.log("gatherAndSubmitUserData: Dialog:", dialog);
+
+  // Sprawdź czy mamy dialog logowania czy edycji
+  const isLoginDialog = dialog.hasAttribute("data-dialog-login");
+  console.log("gatherAndSubmitUserData: Czy to dialog logowania?", isLoginDialog);
+
+  if (isLoginDialog) {
+    // Obsługa logowania
+    const emailInput = dialog.querySelector("[data-action-email]");
+    const passwordInput = dialog.querySelector("[data-action-password]");
+
+    if (!emailInput || !passwordInput) {
+      console.error("gatherAndSubmitUserData: Brak wymaganych pól w formularzu logowania!");
       return;
     }
-  }
 
-  // Walidacja pola imienia (name)
-  const nameInput = dialog.querySelector('[data-dialog-edit] [data-action-input="name"] input');
-  if (nameInput) {
-    userData.name = nameInput.value.trim();
-  } else {
-    // Próbujemy alternatywnego selektora (działający w oryginalnym kodzie)
-    const nameSpan = dialog.querySelector('[data-action-input="name"] [data-action-input-value]');
-    if (nameSpan) {
-      userData.name = nameSpan.value ? nameSpan.value.trim() : nameSpan.textContent.trim() || "";
-    } else {
-      userData.name = "";
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!email || !password) {
+      console.error("gatherAndSubmitUserData: Brak email lub hasła!");
+
+      if (!email) emailInput.classList.add("is-invalid");
+      if (!password) passwordInput.classList.add("is-invalid");
+
+      return;
     }
-  }
 
-  if (!userData.name) {
-    console.error("Name is required.");
+    // Wykonaj logowanie
+    console.log("gatherAndSubmitUserData: Próba logowania dla email:", email);
+    try {
+      auth.signIn(email, password, elements);
+      // Po udanym logowaniu zamknij dialog
+      setTimeout(() => {
+        dialog.close();
+      }, 500);
+    } catch (error) {
+      console.error("Błąd podczas logowania:", error);
+    }
     return;
   }
 
-  const sexToggle = dialog.querySelector('[data-action-input="sex"]');
-  userData.plec = sexToggle ? sexToggle.dataset.selectedValue : "M";
+  // Poniżej kod dla dialogu edycji użytkownika
+  const userId = dialog.dataset.editingUserId;
+  console.log("gatherAndSubmitUserData: ID edytowanego użytkownika:", userId);
 
-  // Walidacja pola wagi (weight)
-  const weightInput = dialog.querySelector('[data-dialog-edit] [data-action-input="weight"] input');
-  let weightValue = NaN;
-
-  if (weightInput) {
-    weightValue = parseInt(weightInput.value.trim(), 10);
-  } else {
-    const weightSpan = dialog.querySelector(
-      '[data-action-input="weight"] [data-action-input-value]'
-    );
-    if (weightSpan) {
-      weightValue = parseInt(weightSpan.value || weightSpan.textContent.trim(), 10);
-    }
-  }
-
-  // Sprawdzamy czy waga jest poprawna (nie jest NaN i jest większa od 0)
-  if (isNaN(weightValue) || weightValue <= 0) {
-    console.error("Weight is required and must be greater than 0.");
+  // Pobierz logikę walidacji dla tego dialogu
+  const validation = setupValidationLogic(dialog);
+  if (!validation) {
+    console.error("gatherAndSubmitUserData: Nie udało się zainicjować logiki walidacji.");
     return;
   }
 
-  userData.waga = weightValue;
+  // Walidacja po kliknięciu
+  const { isValid, errors } = validation.validateAll();
 
-  Object.keys(CONFIG.exercises).forEach((key) => {
-    // Poprawa: najpierw próbujemy selektora z input
-    const maxRepsInput = dialog.querySelector(
-      `[data-dialog-edit] [data-action-input-max-reps="${key}"] input`
-    );
-    const oneRepInput = dialog.querySelector(
-      `[data-dialog-edit] [data-action-input-one-rep="${key}"] input`
-    );
+  // Aktualizuj klasy CSS na podstawie błędów
+  const nameLabel = validation.nameInput?.closest("label");
+  if (nameLabel) {
+    nameLabel.classList.toggle("is-invalid", !!errors.name);
+  }
+  const weightLabel = validation.weightInput?.closest("label");
+  if (weightLabel) {
+    weightLabel.classList.toggle("is-invalid", !!errors.weight);
+  }
 
-    let maxRepsValue = 0;
-    let oneRepValue = 0;
+  if (!isValid) {
+    console.error("gatherAndSubmitUserData: Formularz zawiera błędy!", errors);
+    return; // Zatrzymaj, jeśli są błędy
+  }
 
-    // Pobieramy wartość dla max-reps
-    if (maxRepsInput) {
-      const parsedMax = parseInt(maxRepsInput.value.trim(), 10);
-      if (!isNaN(parsedMax) && parsedMax >= 0) maxRepsValue = parsedMax;
-    } else {
-      const maxRepsSpan = dialog.querySelector(
-        `[data-action-input-max-reps="${key}"] [data-action-input-value]`
-      );
-      if (maxRepsSpan) {
-        const spanValue = maxRepsSpan.value || maxRepsSpan.textContent.trim();
-        const parsedMax = parseInt(spanValue, 10);
-        if (!isNaN(parsedMax) && parsedMax >= 0) maxRepsValue = parsedMax;
-      }
+  // Jeśli walidacja przeszła, zbierz dane
+  const name = validation.nameInput.value.trim();
+  const weight = parseInt(validation.weightInput.value, 10);
+
+  // Pobierz wartość płci z atrybutu data-selected-value
+  const sexToggleElement = dialog.querySelector('[data-action-input="sex"]');
+  const sex = sexToggleElement?.dataset.selectedValue || "M";
+
+  // Przygotuj dane użytkownika
+  const userData = {
+    name: name,
+    waga: weight,
+    plec: sex,
+  };
+
+  // Dodaj identyfikator bieżącego użytkownika do pola created_by
+  const currentUserId = auth.getCurrentUserId();
+  if (!userId && currentUserId) {
+    // Dodajemy created_by tylko dla nowych rekordów (gdy userId jest null)
+    userData.created_by = currentUserId;
+  }
+
+  // Zbierz dane dla wszystkich ćwiczeń
+  Object.entries(CONFIG.exercises).forEach(([key]) => {
+    const maxRepsInput = dialog.querySelector(`[data-action-input-max-reps="${key}"] input`);
+    const oneRepInput = dialog.querySelector(`[data-action-input-one-rep="${key}"] input`);
+
+    // Dla wszystkich ćwiczeń z wyjątkiem press
+    if (key !== "press" && maxRepsInput) {
+      const maxReps = maxRepsInput.value.trim() ? parseInt(maxRepsInput.value, 10) : 0;
+      userData[`${key.replace(/-/g, "_")}_max_reps`] = maxReps;
     }
 
-    // Pobieramy wartość dla one-rep
     if (oneRepInput) {
-      const parsedOne = parseInt(oneRepInput.value.trim(), 10);
-      if (!isNaN(parsedOne) && parsedOne >= 0) oneRepValue = parsedOne;
-    } else {
-      const oneRepSpan = dialog.querySelector(
-        `[data-action-input-one-rep="${key}"] [data-action-input-value]`
-      );
-      if (oneRepSpan) {
-        const spanValue = oneRepSpan.value || oneRepSpan.textContent.trim();
-        const parsedOne = parseInt(spanValue, 10);
-        if (!isNaN(parsedOne) && parsedOne >= 0) oneRepValue = parsedOne;
-      }
-    }
-
-    userData[`${key.replace("-", "_")}_max_reps`] = maxRepsValue;
-    userData[`${key.replace("-", "_")}_one_rep`] = oneRepValue;
-
-    if (key === "press") {
-      delete userData.press_max_reps;
+      const oneRep = oneRepInput.value.trim() ? parseInt(oneRepInput.value, 10) : 0;
+      userData[`${key.replace(/-/g, "_")}_one_rep`] = oneRep;
     }
   });
 
-  const userId = dialog.dataset.editingUserId;
-  const currentUserId = auth.getCurrentUserId();
+  console.log("gatherAndSubmitUserData: Zebrane dane:", userData);
+  console.log("gatherAndSubmitUserData: Klucze obiektu userData:", Object.keys(userData));
 
-  if (!userId && currentUserId) {
-    userData.created_by = currentUserId;
-  } else if (!userId && !currentUserId) {
-    console.error("Cannot create user: No user is logged in to assign created_by.");
-    return;
-  }
-
-  if (userId) {
-    submitToSupabase(userId, userData, dialog, elements);
-  } else {
-    submitToSupabase(null, userData, dialog, elements);
-  }
+  // Wyślij dane do bazy
+  submitToSupabase(userId, userData, dialog, elements);
 }
 
 export async function submitToSupabase(userId, userData, dialog, elements) {
-  const confirmButton = dialog.querySelector('[data-dialog-edit] [data-button-action="confirm"]');
+  const confirmButton = dialog.querySelector('[data-button-action="confirm"]');
   if (confirmButton) confirmButton.disabled = true;
+
+  // Upewnijmy się, że wszystkie klucze używają podkreślników zamiast myślników
+  const sanitizedUserData = {};
+  for (const [key, value] of Object.entries(userData)) {
+    sanitizedUserData[key.replace(/-/g, "_")] = value;
+  }
+
+  console.log("submitToSupabase: Dane po czyszczeniu:", sanitizedUserData);
+  console.log("submitToSupabase: Klucze po czyszczeniu:", Object.keys(sanitizedUserData));
 
   let result;
   let updatedRecordId = null;
@@ -430,7 +422,7 @@ export async function submitToSupabase(userId, userData, dialog, elements) {
 
   try {
     if (userId) {
-      result = await api.updateUser(userId, userData);
+      result = await api.updateUser(userId, sanitizedUserData);
       if (!result.error && result.data && result.data.length > 0) {
         updatedRecordId = result.data[0].id;
         updateTableRow(userId, result.data[0], elements);
@@ -439,7 +431,7 @@ export async function submitToSupabase(userId, userData, dialog, elements) {
         updatedRecordId = userId;
       }
     } else {
-      result = await api.createUser(userData);
+      result = await api.createUser(sanitizedUserData);
       if (!result.error && result.data && result.data.length > 0) {
         updatedRecordId = result.data[0].id;
         addTableRow(result.data[0], elements);
@@ -450,6 +442,12 @@ export async function submitToSupabase(userId, userData, dialog, elements) {
 
     if (result.error) {
       console.error(`Błąd zapisu danych: ${result.error.message}`);
+      if (result.error.details) {
+        console.error("Szczegóły błędu:", result.error.details);
+      }
+      if (result.error.hint) {
+        console.error("Wskazówka:", result.error.hint);
+      }
       shouldCloseDialog = false;
     } else {
       refreshTableCalculations(updatedRecordId, elements);
@@ -777,7 +775,12 @@ export function updateTableRow(userId, user, elements) {
 }
 
 export function openEditDialog(userId = null, elements) {
+  console.log("openEditDialog: START, userId =", userId);
+  console.log("openEditDialog: elements =", elements);
+
   const editDialog = elements.authElements.editDialog || elements.authElements.theDialog;
+  console.log("openEditDialog: dialog =", editDialog);
+
   if (!editDialog) {
     console.error("Nie znaleziono dialogu edycji");
     return;
@@ -838,22 +841,17 @@ export function openEditDialog(userId = null, elements) {
   const populateInput = (selector, value, isPlaceholder = false) => {
     const inputElement = editDialog.querySelector(selector);
     if (inputElement) {
-      // Tryb dodawania nowego użytkownika - użyj oryginalnego placeholdera
-      if (userId === null) {
-        // Przywróć oryginalny placeholder z HTML
-        // Ustaw pustą wartość
-        inputElement.value = "";
-      } else {
-        // Tryb edycji - ustaw placeholder na aktualną wartość
-        inputElement.placeholder = value || inputElement.getAttribute("placeholder") || "";
+      // Zawsze ustawiaj wartość na pustą lub przekazaną
+      inputElement.value =
+        isPlaceholder || value === "" || (typeof value === "string" && value === "0") ? "" : value;
 
-        // Sprawdź czy to placeholder
-        if (isPlaceholder || value === "" || (typeof value === "string" && value === "0")) {
-          // Ustaw pustą wartość, ale zachowaj placeholder z aktualną wartością
-          inputElement.value = "";
-        } else {
-          inputElement.value = value;
-        }
+      // Ustaw placeholder
+      if (userId === null) {
+        // Tryb dodawania: Przywróć oryginalny placeholder z atrybutu data-
+        inputElement.placeholder = inputElement.dataset.originalPlaceholder || "";
+      } else {
+        // Tryb edycji: Ustaw placeholder na aktualną wartość (lub oryginalny, jeśli brak wartości)
+        inputElement.placeholder = value || inputElement.dataset.originalPlaceholder || "";
       }
     }
   };
@@ -869,16 +867,33 @@ export function openEditDialog(userId = null, elements) {
     populateInput('[data-dialog-edit] [data-action-input="name"] input', nameValue);
 
     const sexValue = row.querySelector("[data-user-sex]")?.dataset.value?.toUpperCase() || "M";
-    const sexToggle = editDialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
-    if (sexToggle) {
-      const switcher = sexToggle.querySelector("[data-action-input-switcher]");
-      const updateSwitcher = (val) => {
+    const sexToggleElement = editDialog.querySelector(
+      '[data-dialog-edit] [data-action-input="sex"]'
+    );
+    if (sexToggleElement) {
+      const switcher = sexToggleElement.querySelector("[data-action-input-switcher]");
+
+      // Funkcja aktualizująca tylko pozycję switchera i zapisująca wartość
+      const updateSwitcherState = (selectedValue) => {
         if (switcher) {
-          switcher.style.transform = val === "K" ? "translateX(50%)" : "translateX(-50%)";
+          switcher.style.transform = selectedValue === "K" ? "translateX(50%)" : "translateX(-50%)";
         }
-        sexToggle.dataset.selectedValue = val;
+        sexToggleElement.dataset.selectedValue = selectedValue;
       };
-      updateSwitcher(sexValue);
+
+      // Usuń stary listener, jeśli istniał
+      sexToggleElement.removeEventListener("click", () => {});
+
+      // Dodaj nowy listener do całego kontenera
+      sexToggleElement.addEventListener("click", () => {
+        const currentValue = sexToggleElement.dataset.selectedValue || "M";
+        const newValue = currentValue === "M" ? "K" : "M";
+        updateSwitcherState(newValue);
+      });
+
+      // Ustaw stan początkowy na podstawie danych z wiersza tabeli
+      const initialSex = sexValue; // Używamy sexValue pobranego wcześniej
+      updateSwitcherState(initialSex);
     }
 
     const weightValue = row.querySelector("[data-user-weight]")?.dataset.value || "";
@@ -933,31 +948,33 @@ export function openEditDialog(userId = null, elements) {
       }
     });
 
-    const sexToggle = editDialog.querySelector('[data-dialog-edit] [data-action-input="sex"]');
-    if (sexToggle) {
-      const switcher = sexToggle.querySelector("[data-action-input-switcher]");
+    const sexToggleElement = editDialog.querySelector(
+      '[data-dialog-edit] [data-action-input="sex"]'
+    );
+    if (sexToggleElement) {
+      const switcher = sexToggleElement.querySelector("[data-action-input-switcher]");
 
-      const updateSwitcher = (selectedValue) => {
+      // Funkcja aktualizująca tylko pozycję switchera i zapisująca wartość
+      const updateSwitcherState = (selectedValue) => {
         if (switcher) {
           switcher.style.transform = selectedValue === "K" ? "translateX(50%)" : "translateX(-50%)";
         }
-        sexToggle.dataset.selectedValue = selectedValue;
+        sexToggleElement.dataset.selectedValue = selectedValue;
       };
 
-      // Usuń istniejące listenery przed dodaniem nowego
-      const newSexToggle = sexToggle.cloneNode(true);
-      if (sexToggle.parentNode) {
-        sexToggle.parentNode.replaceChild(newSexToggle, sexToggle);
-      }
+      // Usuń stary listener, jeśli istniał
+      sexToggleElement.removeEventListener("click", () => {});
 
-      newSexToggle.addEventListener("click", () => {
-        const currentValue = newSexToggle.dataset.selectedValue || "M";
+      // Dodaj nowy listener do całego kontenera
+      sexToggleElement.addEventListener("click", () => {
+        const currentValue = sexToggleElement.dataset.selectedValue || "M";
         const newValue = currentValue === "M" ? "K" : "M";
-        updateSwitcher(newValue);
+        updateSwitcherState(newValue);
       });
 
-      const initialSex = newSexToggle.dataset.selectedValue || "M";
-      updateSwitcher(initialSex);
+      // Ustaw stan początkowy
+      const initialSex = "M";
+      updateSwitcherState(initialSex);
     }
   }
 
@@ -1125,219 +1142,308 @@ export function setupAddUserButton(elements) {
 }
 
 export function setupHoldToSaveButton(button, dialog, elements) {
-  // Najpierw usuńmy wszystkie istniejące event listenery z przycisku
-  const newButton = button.cloneNode(true);
-  if (button.parentNode) {
-    button.parentNode.replaceChild(newButton, button);
+  console.log("setupHoldToSaveButton: START dla przycisku:", button);
+
+  if (!button) {
+    console.error("setupHoldToSaveButton: Nieprawidłowy przycisk", button);
+    return;
   }
-  button = newButton;
 
-  // Inicjalizacja zmiennych i elementów niezależnie od rozmiaru ekranu
-  let pressTimer;
-  let progressAnimation;
-  const holdDuration = 1000; // 1 sekunda dla hold-to-save
-  const progressBar = document.createElement("div");
-  const originalLabel = button.querySelector(".button_label")?.textContent || "Zapisz";
+  // Usuwamy klonowanie przycisku, które powodowało utratę listenerów zdarzeń
+  // Zamiast klonowania, korzystamy z oryginalnego elementu
+  const holdButton = button;
 
-  progressBar.style.position = "absolute";
-  progressBar.style.bottom = "0";
-  progressBar.style.left = "0";
-  progressBar.style.height = "3px";
-  progressBar.style.backgroundColor = "#FFFFFF"; // Biały pasek postępu
-  progressBar.style.width = "0";
-  progressBar.style.transition = "width 0.05s linear";
-  button.style.position = "relative";
-  button.appendChild(progressBar);
+  console.log("setupHoldToSaveButton: Używamy oryginalnego przycisku");
+
+  const originalText = holdButton.querySelector(".button_label")?.textContent || "";
+  console.log("setupHoldToSaveButton: Oryginalny tekst przycisku:", originalText);
+
+  // Sprawdzamy, czy jesteśmy na urządzeniu mobilnym
+  const isMobile = window.innerWidth <= 768;
+
+  // Tworzymy pasek postępu tylko dla urządzeń mobilnych
+  let progressBar = holdButton.querySelector(".hold-progress");
+  if (isMobile) {
+    if (!progressBar) {
+      progressBar = document.createElement("div");
+      progressBar.className = "hold-progress";
+      progressBar.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        width: 0%;
+        background-color: var(--_colors---brand, #FFCB16);
+        transition: width 0.1s linear;
+        z-index: 2;
+      `;
+      holdButton.appendChild(progressBar);
+      console.log("setupHoldToSaveButton: Dodano pasek postępu");
+    }
+  } else if (progressBar) {
+    // Usuwamy pasek postępu na desktopie jeśli istnieje
+    progressBar.remove();
+  }
+
+  // Używamy zmiennych do przechowywania stanu
+  let progressInterval;
+  let isHolding = false;
+  let holdStartTime;
+  let touchStartX, touchStartY;
+  let moveThreshold = 10; // px
+  let hasMoved = false;
+  let holdDuration = 1000; // 1000ms tylko dla mobile
 
   const resetButton = () => {
-    if (pressTimer) clearTimeout(pressTimer);
-    if (progressAnimation) cancelAnimationFrame(progressAnimation);
-    progressBar.style.width = "0";
-    const label = button.querySelector(".button_label");
-    if (label) label.textContent = originalLabel;
-    button.classList.remove("is-saving");
+    console.log("resetButton: Resetowanie stanu przycisku");
+    isHolding = false;
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
+
+    if (progressBar) {
+      progressBar.style.width = "0%";
+    }
+
+    // Przywracamy oryginalny tekst
+    const buttonLabel = holdButton.querySelector(".button_label");
+    if (buttonLabel) {
+      buttonLabel.textContent = originalText;
+    }
+
+    // Usuwamy dodatkowe klasy
+    holdButton.classList.remove("is-saving", "is-success", "is-error");
   };
 
   const startProgress = (startTime) => {
+    if (!isMobile) return; // Nie uruchamiamy na desktopie
+
     const animate = () => {
+      if (!isHolding) return;
+
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / holdDuration) * 100, 100);
-      progressBar.style.width = `${progress}%`;
 
-      if (elapsed < holdDuration) {
-        progressAnimation = requestAnimationFrame(animate);
+      if (progressBar) {
+        progressBar.style.width = `${progress}%`;
+      }
+
+      if (progress >= 100) {
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+        saveUser();
       }
     };
-    progressAnimation = requestAnimationFrame(animate);
+
+    progressInterval = setInterval(animate, 10);
   };
 
   const saveUser = () => {
-    gatherAndSubmitUserData(dialog, elements);
+    // Zamiast gromadzić dane bezpośrednio tutaj, wywołujemy funkcję, która to zrobi
+    console.log("saveUser: Rozpoczynam procedurę zapisu danych");
+
+    // Upewnijmy się, że dialog i elements są dostępne
+    if (!dialog) {
+      console.error("saveUser: Brak referencji do dialogu!");
+      return;
+    }
+
+    if (!elements) {
+      console.error("saveUser: Brak referencji do elements!");
+      return;
+    }
+
+    // Bezpośrednie wywołanie funkcji - blokujemy event propagation
+    try {
+      gatherAndSubmitUserData(dialog, elements);
+      console.log("saveUser: Wywołano gatherAndSubmitUserData");
+    } catch (error) {
+      console.error("saveUser: Błąd podczas przetwarzania danych:", error);
+    }
   };
 
   const handleStart = (e) => {
-    // Zapobiegaj domyślnej akcji przycisku
-    e.preventDefault();
+    // Obsługa tylko dla urządzeń mobilnych
+    if (!isMobile) return;
 
-    const label = button.querySelector(".button_label");
-    if (label) label.textContent = "Trzymaj...";
-    button.classList.add("is-saving");
+    // Obsługa zarówno dotyku, jak i myszy
+    if (e.type === "touchstart") {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }
 
-    const startTime = Date.now();
-    startProgress(startTime);
+    holdStartTime = Date.now();
+    isHolding = true;
+    hasMoved = false;
 
-    pressTimer = setTimeout(() => {
-      saveUser();
-    }, holdDuration);
+    startProgress(holdStartTime);
+  };
+
+  const handleMove = (e) => {
+    if (!isHolding || !isMobile) return;
+
+    // Sprawdzamy tylko dla zdarzeń dotykowych
+    if (e.type === "touchmove") {
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+
+      // Sprawdzamy, czy użytkownik przesunął palec wystarczająco daleko
+      const deltaX = Math.abs(touchX - touchStartX);
+      const deltaY = Math.abs(touchY - touchStartY);
+
+      if (deltaX > moveThreshold || deltaY > moveThreshold) {
+        hasMoved = true;
+        resetButton();
+      }
+    }
   };
 
   const handleEnd = () => {
+    // Tylko dla urządzeń mobilnych
+    if (!isMobile) return;
+
+    // Sprawdzamy, czy użytkownik nie przesunął palca/kursora zbyt daleko
+    if (isHolding && !hasMoved) {
+      // Obliczamy, ile czasu minęło od rozpoczęcia przytrzymania
+      const elapsed = Date.now() - holdStartTime;
+
+      // Jeśli minęło wystarczająco dużo czasu, zapisujemy
+      if (elapsed >= holdDuration) {
+        saveUser();
+      }
+    }
+
     resetButton();
   };
 
-  // Dodajemy obsługę zdarzeń dotykowych tylko dla urządzeń mobilnych
-  if (window.innerWidth <= 991) {
-    button.addEventListener("mousedown", handleStart);
-    button.addEventListener("touchstart", handleStart, { passive: false });
-    button.addEventListener("mouseup", handleEnd);
-    button.addEventListener("mouseleave", handleEnd);
-    button.addEventListener("touchend", handleEnd);
-    button.addEventListener("touchcancel", handleEnd);
+  // Dodajemy delegowany handler dla kliknięcia, który nie usuwa innych listenerów
+  const handleClick = (e) => {
+    console.log("Przycisk potwierdź: Kliknięty!", e.type);
+
+    // Sprawdźmy, czy to przycisk logowania
+    const isLoginButton =
+      dialog.hasAttribute("data-dialog-login") && holdButton.closest("[data-dialog-login]");
+
+    // Na desktopie natychmiast zapisujemy
+    if (!isMobile || isLoginButton) {
+      console.log("Natychmiastowa akcja - desktop lub przycisk logowania");
+      saveUser();
+      return;
+    }
+
+    // Dla kliknięć na urządzeniach mobilnych (krótszych niż 250ms) wykonujemy akcję natychmiast
+    if (isMobile && Date.now() - holdStartTime < 250) {
+      saveUser();
+      resetButton();
+    }
+  };
+
+  // Usuwamy istniejące nasłuchiwacze przed dodaniem nowych, aby uniknąć duplikacji
+  holdButton.removeEventListener("mousedown", handleStart);
+  holdButton.removeEventListener("touchstart", handleStart);
+  holdButton.removeEventListener("mousemove", handleMove);
+  holdButton.removeEventListener("touchmove", handleMove);
+  holdButton.removeEventListener("mouseup", handleEnd);
+  holdButton.removeEventListener("touchend", handleEnd);
+  holdButton.removeEventListener("mouseleave", handleEnd);
+  holdButton.removeEventListener("click", handleClick);
+
+  // Dodajemy nowe nasłuchiwacze - dla mobilnej wersji
+  if (isMobile) {
+    holdButton.addEventListener("mousedown", handleStart);
+    holdButton.addEventListener("touchstart", handleStart, { passive: true });
+    holdButton.addEventListener("mousemove", handleMove);
+    holdButton.addEventListener("touchmove", handleMove, { passive: true });
+    holdButton.addEventListener("mouseup", handleEnd);
+    holdButton.addEventListener("touchend", handleEnd);
+    holdButton.addEventListener("mouseleave", handleEnd);
   }
 
-  // Dodaj obsługę kliknięcia na desktopie (dla szerokości ekranu > 991px)
-  const handleClick = (e) => {
-    if (window.innerWidth > 991) {
-      e.preventDefault();
-      saveUser();
-    }
-  };
+  // Zawsze dodajemy listener click dla desktopa i mobilnych
+  holdButton.addEventListener("click", handleClick);
 
-  button.addEventListener("click", handleClick);
+  console.log("setupHoldToSaveButton: Dodano listener click");
 
-  // Aktualizacja przy zmianie rozmiaru ekranu
+  // Funkcja aktualizacji oparta na rozmiarze ekranu
   const updateBasedOnScreenSize = () => {
-    resetButton();
-    if (window.innerWidth > 991) {
-      // Desktopowy tryb - ukryj pasek postępu
-      progressBar.style.display = "none";
+    const wasDesktop = !isMobile;
+    const newIsMobile = window.innerWidth <= 768;
 
-      // Usunięcie obsługi zdarzeń dotykowych
-      button.removeEventListener("mousedown", handleStart);
-      button.removeEventListener("touchstart", handleStart);
-      button.removeEventListener("mouseup", handleEnd);
-      button.removeEventListener("mouseleave", handleEnd);
-      button.removeEventListener("touchend", handleEnd);
-      button.removeEventListener("touchcancel", handleEnd);
-    } else {
-      // Mobilny tryb - pokaż pasek postępu
-      progressBar.style.display = "block";
-
-      // Dodanie obsługi zdarzeń dotykowych
-      button.addEventListener("mousedown", handleStart);
-      button.addEventListener("touchstart", handleStart, { passive: false });
-      button.addEventListener("mouseup", handleEnd);
-      button.addEventListener("mouseleave", handleEnd);
-      button.addEventListener("touchend", handleEnd);
-      button.addEventListener("touchcancel", handleEnd);
+    // Jeśli zmienił się tryb (desktop <-> mobile)
+    if (wasDesktop !== !newIsMobile) {
+      // Odświeżamy setup przycisku
+      resetButton();
+      setupHoldToSaveButton(button, dialog, elements);
     }
   };
 
+  // Nasłuchiwacz zmiany rozmiaru ekranu
+  window.removeEventListener("resize", updateBasedOnScreenSize);
   window.addEventListener("resize", updateBasedOnScreenSize);
-  updateBasedOnScreenSize(); // Wywołaj przy inicjalizacji
 
-  // Czyszczenie przy zamknięciu dialogu
+  // Resetuj przycisk przy zamknięciu dialogu
   const closeListener = () => {
-    button.removeEventListener("mousedown", handleStart);
-    button.removeEventListener("touchstart", handleStart);
-    button.removeEventListener("mouseup", handleEnd);
-    button.removeEventListener("mouseleave", handleEnd);
-    button.removeEventListener("touchend", handleEnd);
-    button.removeEventListener("touchcancel", handleEnd);
-    button.removeEventListener("click", handleClick);
-    window.removeEventListener("resize", updateBasedOnScreenSize);
-    dialog.removeEventListener("close", closeListener);
     resetButton();
-
-    // Usuwamy pasek postępu tylko jeśli istnieje i ma rodzica
-    if (progressBar && progressBar.parentNode) {
-      progressBar.parentNode.removeChild(progressBar);
-    }
   };
 
+  // Usuń stary listener i dodaj nowy
+  dialog.removeEventListener("close", closeListener);
   dialog.addEventListener("close", closeListener);
+
+  console.log("setupHoldToSaveButton: KONIEC, tryb:", isMobile ? "mobilny" : "desktop");
+  return holdButton;
 }
 
-// Funkcja do walidacji pól w czasie rzeczywistym
-function setupLiveValidation(dialog) {
-  if (!dialog) return;
+// Funkcja do walidacji pól (bez modyfikacji DOM)
+function setupValidationLogic(dialog) {
+  if (!dialog) return null;
 
-  // Funkcja walidująca pole tekstowe
-  const validateNameField = (input) => {
-    const value = input.value.trim();
-    const label = input.closest("label");
-
-    if (!value || value === "") {
-      if (label) label.classList.add("is-invalid");
-      return false;
-    } else {
-      if (label) label.classList.remove("is-invalid");
-      return true;
-    }
-  };
-
-  // Funkcja walidująca pole wagi
-  const validateWeightField = (input) => {
-    const value = parseInt(input.value.trim(), 10);
-    const label = input.closest("label");
-
-    if (isNaN(value) || value <= 0) {
-      if (label) label.classList.add("is-invalid");
-      return false;
-    } else {
-      if (label) label.classList.remove("is-invalid");
-      return true;
-    }
-  };
-
-  // Dodaj listenery do pola imienia
   const nameInput = dialog.querySelector('[data-action-input="name"] input');
-  if (nameInput) {
-    nameInput.addEventListener("input", () => validateNameField(nameInput));
-    nameInput.addEventListener("change", () => validateNameField(nameInput));
-    nameInput.addEventListener("blur", () => validateNameField(nameInput));
-
-    // Dodajemy funkcję walidacji do inputa, aby można było ją wywołać z zewnątrz
-    nameInput.validate = () => validateNameField(nameInput);
-  }
-
-  // Dodaj listenery do pola wagi
   const weightInput = dialog.querySelector('[data-action-input="weight"] input');
-  if (weightInput) {
-    weightInput.addEventListener("input", () => validateWeightField(weightInput));
-    weightInput.addEventListener("change", () => validateWeightField(weightInput));
-    weightInput.addEventListener("blur", () => validateWeightField(weightInput));
 
-    // Dodajemy funkcję walidacji do inputa, aby można było ją wywołać z zewnątrz
-    weightInput.validate = () => validateWeightField(weightInput);
-  }
-
-  // Dodajemy metodę do walidacji wszystkich pól
-  dialog.validateAllFields = () => {
-    let isValid = true;
-    if (nameInput && nameInput.validate) {
-      isValid = nameInput.validate() && isValid;
-    }
-    if (weightInput && weightInput.validate) {
-      isValid = weightInput.validate() && isValid;
-    }
-    return isValid;
+  // Funkcja sprawdzająca pole tekstowe (zwraca true/false)
+  const isNameValid = () => {
+    return nameInput && nameInput.value.trim() !== "";
   };
 
-  // Zwracamy obiekt z metodami walidacji
+  // Funkcja sprawdzająca pole wagi (zwraca true/false)
+  const isWeightValid = () => {
+    if (!weightInput) return true; // Jeśli nie ma pola wagi, uznajemy za poprawne
+    const value = parseInt(weightInput.value.trim(), 10);
+    return !isNaN(value) && value > 0;
+  };
+
+  // Funkcja sprawdzająca wszystkie pola i zwracająca status oraz listę błędów
+  const validateAll = () => {
+    const errors = {};
+    if (!isNameValid()) {
+      errors.name = true;
+    }
+    if (!isWeightValid()) {
+      errors.weight = true;
+    }
+    const isValid = Object.keys(errors).length === 0;
+    return { isValid, errors };
+  };
+
+  // Zwracamy obiekt z funkcjami walidującymi
   return {
-    validateName: nameInput ? () => validateNameField(nameInput) : () => true,
-    validateWeight: weightInput ? () => validateWeightField(weightInput) : () => true,
-    validateAll: () => dialog.validateAllFields(),
+    isNameValid,
+    isWeightValid,
+    validateAll,
+    nameInput, // Zwracamy też referencje do inputów dla łatwiejszego dostępu
+    weightInput,
   };
+}
+
+// Ta funkcja jest wywoływana podczas inicjalizacji dialogu, ale nie dodaje już listenerów live
+function setupLiveValidation(dialog) {
+  // Można tu zostawić ewentualne inne konfiguracje walidacji, jeśli będą potrzebne,
+  // ale usuwamy logikę live validation (event listenery input/change/blur)
+  // i bezpośrednie dodawanie/usuwanie klas is-invalid.
+  console.log("SetupLiveValidation: Konfiguracja walidacji (bez live).");
+  // Wcześniejszy kod listenerów i modyfikacji DOM został usunięty.
 }

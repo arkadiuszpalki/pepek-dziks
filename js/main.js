@@ -300,103 +300,80 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     calculations.updateRankAndMedals(visibleRows);
 
+    console.log("--- main.js: Inicjalizacja sortowania i filtrowania");
     sorting.setupSorting(state, elements);
     filtering.setupFiltering(state, elements);
-    userManagement.setupDialogInteractions(elements);
     auth.setupAuthListeners(elements);
+
+    console.log("--- main.js: Inicjalizacja gestów i dialogów");
+    // Jeśli dialogManager jest dostępny, zainicjalizuj dialogi
+    if (dialogManager) {
+      console.log("--- main.js: Wywołanie dialogManager.initializeAllDialogs");
+      dialogManager.initializeAllDialogs(elements, setupDialogSwipeGesture);
+    }
+
+    // Inicjalizacja interakcji z dialogiem dla userManagement
+    if (userManagement) {
+      console.log("--- main.js: Wywołanie userManagement.setupDialogInteractions");
+      userManagement.setupDialogInteractions(elements);
+    }
+
+    // Bezpośrednia inicjalizacja przycisków w dialogach
+    const initializeAllDialogButtons = () => {
+      // Znajdujemy wszystkie dialogi
+      const allDialogs = document.querySelectorAll("dialog.dialog");
+      allDialogs.forEach((dialog) => {
+        // Sprawdzamy, czy dialog ma już zainicjalizowane przyciski
+        if (dialog.hasAttribute("data-buttons-initialized")) {
+          console.log(`Dialog buttons already initialized for:`, dialog);
+          return;
+        }
+
+        const buttons = dialog.querySelectorAll("[data-button-action]");
+        buttons.forEach((button) => {
+          const action = button.getAttribute("data-button-action");
+
+          // Pomijamy przyciski confirm, które są już obsługiwane przez setupHoldToSaveButton
+          if (action === "confirm") {
+            console.log(
+              `Pomijam konfigurację przycisku ${action} - będzie obsłużony przez userManagement`
+            );
+            return;
+          }
+
+          // Usuwamy istniejące listenery (klonowanie)
+          const newButton = button.cloneNode(true);
+          button.parentNode.replaceChild(newButton, button);
+
+          // Dodajemy nowy listener
+          newButton.addEventListener("click", (e) => {
+            console.log(`Przycisk ${action} kliknięty!`);
+
+            if (action === "cancel" || action === "close") {
+              dialog.close();
+            } else if (action === "login") {
+              const loginDialog = document.querySelector("[data-dialog-login]");
+              if (loginDialog) loginDialog.showModal();
+            } else if (action === "logout") {
+              auth.signOut(elements);
+            } else if (action === "elo-info") {
+              const eloInfoDialog = document.querySelector("[data-dialog-elo-info]");
+              if (eloInfoDialog) eloInfoDialog.showModal();
+            }
+          });
+        });
+
+        // Oznaczamy dialog jako zainicjalizowany
+        dialog.setAttribute("data-buttons-initialized", "true");
+      });
+    };
+
+    // Wywołaj inicjalizację przycisków
+    initializeAllDialogButtons();
+
+    // Przywracamy inicjalizację przycisku dodawania użytkownika
+    console.log("--- main.js: Wywołanie userManagement.setupAddUserButton");
     userManagement.setupAddUserButton(elements);
-
-    // Zmień właściwości pól formularza, aby uniknąć wykrycia przez menedżery haseł
-    if (elements.authElements.emailInput) {
-      // Zapamiętaj oryginalne atrybuty
-      const originalEmailType = elements.authElements.emailInput.type;
-      const originalEmailName = elements.authElements.emailInput.name;
-      const originalEmailId = elements.authElements.emailInput.id;
-      const originalEmailPlaceholder = elements.authElements.emailInput.placeholder;
-
-      // Zmień na niezwiązane z logowaniem
-      elements.authElements.emailInput.type = "hidden";
-      elements.authElements.emailInput.name =
-        "fake_field_" + Math.random().toString(36).substring(2, 15);
-      if (elements.authElements.emailInput.id) {
-        elements.authElements.emailInput.id =
-          "fake_field_" + Math.random().toString(36).substring(2, 15);
-      }
-      elements.authElements.emailInput.removeAttribute("placeholder");
-      elements.authElements.emailInput.setAttribute("autocomplete", "off");
-      elements.authElements.emailInput.setAttribute("data-lpignore", "true");
-      elements.authElements.emailInput.setAttribute("data-1p-ignore", "true");
-      elements.authElements.emailInput.setAttribute("aria-hidden", "true");
-
-      // Przywróć oryginalne atrybuty po kliknięciu przycisku logowania
-      if (elements.authElements.initialLoginButton) {
-        elements.authElements.initialLoginButton.addEventListener(
-          "click",
-          () => {
-            elements.authElements.emailInput.type = originalEmailType;
-            elements.authElements.emailInput.name = originalEmailName;
-            if (originalEmailId) {
-              elements.authElements.emailInput.id = originalEmailId;
-            }
-            if (originalEmailPlaceholder) {
-              elements.authElements.emailInput.placeholder = originalEmailPlaceholder;
-            }
-            elements.authElements.emailInput.removeAttribute("aria-hidden");
-          },
-          { once: true }
-        );
-      }
-    }
-
-    if (elements.authElements.passwordInput) {
-      // Zapamiętaj oryginalne atrybuty
-      const originalPwdType = elements.authElements.passwordInput.type;
-      const originalPwdName = elements.authElements.passwordInput.name;
-      const originalPwdId = elements.authElements.passwordInput.id;
-      const originalPwdPlaceholder = elements.authElements.passwordInput.placeholder;
-
-      // Zmień na niezwiązane z logowaniem
-      elements.authElements.passwordInput.type = "hidden";
-      elements.authElements.passwordInput.name =
-        "fake_field_" + Math.random().toString(36).substring(2, 15);
-      if (elements.authElements.passwordInput.id) {
-        elements.authElements.passwordInput.id =
-          "fake_field_" + Math.random().toString(36).substring(2, 15);
-      }
-      elements.authElements.passwordInput.removeAttribute("placeholder");
-      elements.authElements.passwordInput.setAttribute("autocomplete", "off");
-      elements.authElements.passwordInput.setAttribute("data-lpignore", "true");
-      elements.authElements.passwordInput.setAttribute("data-1p-ignore", "true");
-      elements.authElements.passwordInput.setAttribute("aria-hidden", "true");
-
-      // Przywróć oryginalne atrybuty po kliknięciu przycisku logowania
-      if (elements.authElements.initialLoginButton) {
-        elements.authElements.initialLoginButton.addEventListener(
-          "click",
-          () => {
-            elements.authElements.passwordInput.type = originalPwdType;
-            elements.authElements.passwordInput.name = originalPwdName;
-            if (originalPwdId) {
-              elements.authElements.passwordInput.id = originalPwdId;
-            }
-            if (originalPwdPlaceholder) {
-              elements.authElements.passwordInput.placeholder = originalPwdPlaceholder;
-            }
-            elements.authElements.passwordInput.removeAttribute("aria-hidden");
-          },
-          { once: true }
-        );
-      }
-    }
-
-    // Setup dialog swipe to dismiss
-    setupDialogSwipeGesture(elements.authElements.theDialog, { offset: 30 });
-
-    // Inicjalizacja dialogów przez nowy moduł zarządzania dialogami
-    dialogManager.initializeAllDialogs(elements, (dialog) => {
-      setupDialogSwipeGesture(dialog, { offset: 30 });
-      disableAutofocusOnMobile(dialog);
-    });
 
     // Funkcja wyłączająca autofocus na urządzeniach mobilnych
     function disableAutofocusOnMobile(dialogElement) {
